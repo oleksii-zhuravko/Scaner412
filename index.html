@@ -136,7 +136,7 @@
 
 <div class="controls">
     <button id="torchBtn" onclick="toggleTorch()">🔦 Ліхтарик: ВИМК</button>
-    <button onclick="copyData()" style="background: #e7f3ff; color: #0056b3; border-color: #cfe2ff;">📋 Скопіювати все</button>
+    <button onclick="copyData(event)" id="copyBtn" style="background: #e7f3ff; color: #0056b3; border-color: #cfe2ff;">📋 Скопіювати все</button>    
     <button onclick="showClearModal()" style="color: #d93025; background: #fff5f5; border-color: #fad2cf;">🗑 Очистити все</button>
 </div>
 
@@ -261,12 +261,29 @@
         } catch (e) {}
     }
 
-    function copyData() {
+    function copyData(event) {
+        const btn = event.currentTarget; // Отримуємо саме кнопку, на яку натиснули
         if (!resultField.value) return;
+
         navigator.clipboard.writeText(resultField.value).then(() => {
-            const originalText = event.target.innerText;
-            event.target.innerText = "✅ Скопійовано!";
-            setTimeout(() => { event.target.innerText = originalText; }, 2000);
+            const originalText = "📋 Скопіювати все";
+            const originalBg = "#e7f3ff";
+            const originalColor = "#0056b3";
+            const originalBorder = "#cfe2ff";
+
+            // Змінюємо на "успішний" стан
+            btn.innerText = "✅ Скопійовано!";
+            btn.style.background = "#d4edda";
+            btn.style.color = "#155724";
+            btn.style.borderColor = "#c3e6cb";
+
+            setTimeout(() => {
+                // Повертаємо вихідний стан
+                btn.innerText = originalText;
+                btn.style.background = originalBg;
+                btn.style.color = originalColor;
+                btn.style.borderColor = originalBorder;
+            }, 2000);
         });
     }
 
@@ -281,3 +298,4 @@
 </script>
 </body>
 </html>
+
