@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>СКАНЕР 412</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f5f5f5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+
+    <style>
+        * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        body {
+            font-family: Arial, sans-serif; padding: 15px; background: #f5f5f5;
+            display: flex; flex-direction: column; align-items: center;
+            touch-action: none; overflow: hidden; height: 100vh; margin: 0; box-sizing: border-box;
+        }
+        video {
+            width: 100%; max-width: 600px; height: 25vh; border-radius: 8px;
+            margin-bottom: 10px; object-fit: cover; background: #000;
+        }
+        textarea {
+            width: 100%; max-width: 600px; box-sizing: border-box; height: 150px;
+            font-size: 16px; margin-bottom: 10px; white-space: pre;
+            border: 2px solid #ccc; border-radius: 8px; padding: 10px; resize: none;
+            -webkit-user-select: text; user-select: text; touch-action: pan-y; 
+        }
+        .controls { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 8px; }
+        button {
+            padding: 15px; width: 100%; font-size: 18px; cursor: pointer;
+            border-radius: 8px; border: 1px solid #ddd; background: #fff;
+            touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+        }
+        #torchBtn { display: none; background: #fff3cd; }
+    </style>
+</head>
+<body>
+
+<h2 style="margin: 5px 0">СКАНЕР 412</h2>
+<video id="video"></video>
+<div id="counter" style="font-weight: bold; margin-bottom: 10px;">Всього: 0</div>
+<textarea id="result" readonly placeholder="Відскановані номери..."></textarea>
+
+<div class="controls">
+    <button id="torchBtn" onclick="toggleTorch()">🔦 Ліхтарик: ВИМК</button>
+    <button onclick="copyData()" style="background: #e7f3ff;">📋 Скопіювати</button>
+    <button onclick="clearData()">🗑 Очистити все</button>
+</div>
+
+<script>
+    // Реєстрація Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
+    }
+
+    // Заборона зуму
+    document.addEventListener('touchmove', e => { if (e.scale !== 1) e.preventDefault(); }, { passive: false });
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', e => {
+        let now = Date.now();
+        if (now - lastTouchEnd <= 300) e.preventDefault();
+        lastTouchEnd = now;
+    }, false);
+
+    const STORAGE_KEY = 'scanner412_codes';
+    const codeReader = new ZXing.BrowserBarcodeReader();
+    const videoElement = document.getElementById('video');
+    const resultField = document.getElementById('result');
+    const counter = document.getElementById('counter');
+    const torchBtn = document.getElementById('torchBtn');
+
+    const scannedCodes = new Set();
+    let scanTimeout = false;
+    let videoStream = null;
+    let isTorchOn = false;
+
+    function scrollToBottom() { resultField.scrollTop = resultField.scrollHeight; }
+
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    if (savedData) {
+        const codesArray = JSON.parse(savedData);
+        codesArray.forEach(code => scannedCodes.add(code));
+        resultField.value = codesArray.join('\n');
+        counter.textContent = `Всього: ${scannedCodes.size}`;
+        scrollToBottom();
+    }
+
+    codeReader.decodeFromVideoDevice(null, videoElement, (result, err) => {
+        if (!videoStream && videoElement.srcObject) {
+            videoStream = videoElement.srcObject;
+            checkTorchSupport();
+        }
+        if (result && !scanTimeout) {
+            const code = result.text;
+            if (scannedCodes.has(code)) return;
+            scannedCodes.add(code);
+            resultField.value = resultField.value ? resultField.value + '\n' + code : code;
+            counter.textContent = `Всього: ${scannedCodes.size}`;
+            scrollToBottom();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
+            playBeep();
+            scanTimeout = true;
+            setTimeout(() => scanTimeout = false, 1500);
+        }
+    });
+
+    async function checkTorchSupport() {
+        try {
+            const track = videoStream.getVideoTracks()[0];
+            const capabilities = track.getCapabilities();
+            if (capabilities.torch) torchBtn.style.display = 'block';
+        } catch (e) {}
+    }
+
+    async function toggleTorch() {
+        try {
+            const track = videoStream.getVideoTracks()[0];
+            isTorchOn = !isTorchOn;
+            await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
+            torchBtn.innerText = isTorchOn ? "🔦 Ліхтарик: УВІМК" : "🔦 Ліхтарик: ВИМК";
+        } catch (e) { alert("Не підтримується"); }
+    }
+
+    function playBeep() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = 800; gain.gain.value = 0.1;
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); setTimeout(() => { osc.stop(); audioCtx.close(); }, 80);
+    }
+
+    function copyData() {
+        navigator.clipboard.writeText(resultField.value).then(() => alert('Скопійовано!'));
+    }
+
+    function clearData() {
+        if(confirm("Очистити?")) {
+            resultField.value = ''; scannedCodes.clear();
+            counter.textContent = 'Всього: 0'; localStorage.removeItem(STORAGE_KEY);
+        }
+    }
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log("PWA зареєстровано!"));
+  }
+</script>
+</body>
+</html>
