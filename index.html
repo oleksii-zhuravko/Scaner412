@@ -22,6 +22,19 @@
             width: 100%; max-width: 600px; height: 25vh; border-radius: 8px;
             margin-bottom: 10px; object-fit: cover; background: #000;
         }
+        
+        /* Стилі для ручного введення */
+        .manual-input-group {
+            width: 100%; max-width: 600px; display: flex; gap: 5px; margin-bottom: 10px;
+        }
+        #manualInput {
+            flex: 1; padding: 12px; font-size: 16px; border-radius: 8px;
+            border: 2px solid #ccc; -webkit-user-select: text; user-select: text;
+        }
+        #addBtn {
+            width: auto; padding: 0 20px; background: #4CAF50; color: white; border: none;
+        }
+
         textarea {
             width: 100%; max-width: 600px; box-sizing: border-box; height: 150px;
             font-size: 16px; margin-bottom: 10px; white-space: pre;
@@ -40,30 +53,27 @@
 <body>
 
 <h2 style="margin: 5px 0">СКАНЕР 412</h2>
+
 <video id="video"></video>
-<div id="counter" style="font-weight: bold; margin-bottom: 10px;">Всього: 0</div>
+
+<div class="manual-input-group">
+    <input type="tel" id="manualInput" placeholder="Ввести номер вручну..." autocomplete="off" inputmode="numeric" pattern="[0-9]*">
+    <button id="addBtn" onclick="addManualCode()">➕</button>
+</div>
+
+<div id="counter" style="font-weight: bold; margin-bottom: 5px;">Всього: 0</div>
 <textarea id="result" readonly placeholder="Відскановані номери..."></textarea>
 
 <div class="controls">
     <button id="torchBtn" onclick="toggleTorch()">🔦 Ліхтарик: ВИМК</button>
-    <button onclick="copyData()" style="background: #e7f3ff;">📋 Скопіювати</button>
+    <button onclick="copyData()" style="background: #e7f3ff;">📋 Скопіювати все</button>
     <button onclick="clearData()">🗑 Очистити все</button>
 </div>
 
 <script>
-    // Реєстрація Service Worker
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
     }
-
-    // Заборона зуму
-    document.addEventListener('touchmove', e => { if (e.scale !== 1) e.preventDefault(); }, { passive: false });
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', e => {
-        let now = Date.now();
-        if (now - lastTouchEnd <= 300) e.preventDefault();
-        lastTouchEnd = now;
-    }, false);
 
     const STORAGE_KEY = 'scanner412_codes';
     const codeReader = new ZXing.BrowserBarcodeReader();
@@ -71,6 +81,7 @@
     const resultField = document.getElementById('result');
     const counter = document.getElementById('counter');
     const torchBtn = document.getElementById('torchBtn');
+    const manualInput = document.getElementById('manualInput');
 
     const scannedCodes = new Set();
     let scanTimeout = false;
@@ -79,31 +90,58 @@
 
     function scrollToBottom() { resultField.scrollTop = resultField.scrollHeight; }
 
+    function updateDisplay() {
+        resultField.value = Array.from(scannedCodes).join('\n');
+        counter.textContent = `Всього: ${scannedCodes.size}`;
+        scrollToBottom();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
+    }
+
+    // Відновлення даних
     const savedData = localStorage.getItem(STORAGE_KEY);
     if (savedData) {
         const codesArray = JSON.parse(savedData);
         codesArray.forEach(code => scannedCodes.add(code));
-        resultField.value = codesArray.join('\n');
-        counter.textContent = `Всього: ${scannedCodes.size}`;
-        scrollToBottom();
+        updateDisplay();
     }
 
+    // Функція додавання коду (спільна для камери та рук)
+    function processCode(code) {
+        code = code.trim();
+        if (!code || scannedCodes.has(code)) return false;
+
+        scannedCodes.add(code);
+        updateDisplay();
+        playBeep();
+        return true;
+    }
+
+    // Додавання вручну
+    function addManualCode() {
+        const code = manualInput.value;
+        if (processCode(code)) {
+            manualInput.value = ''; // Очистити поле після успіху
+        } else if (scannedCodes.has(code.trim())) {
+            alert("Цей номер уже є у списку!");
+        }
+    }
+
+    // Обробка натискання Enter у полі введення
+    manualInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addManualCode();
+    });
+
+    // Сканування камерою
     codeReader.decodeFromVideoDevice(null, videoElement, (result, err) => {
         if (!videoStream && videoElement.srcObject) {
             videoStream = videoElement.srcObject;
             checkTorchSupport();
         }
         if (result && !scanTimeout) {
-            const code = result.text;
-            if (scannedCodes.has(code)) return;
-            scannedCodes.add(code);
-            resultField.value = resultField.value ? resultField.value + '\n' + code : code;
-            counter.textContent = `Всього: ${scannedCodes.size}`;
-            scrollToBottom();
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
-            playBeep();
-            scanTimeout = true;
-            setTimeout(() => scanTimeout = false, 1500);
+            if (processCode(result.text)) {
+                scanTimeout = true;
+                setTimeout(() => scanTimeout = false, 1500);
+            }
         }
     });
 
@@ -125,30 +163,28 @@
     }
 
     function playBeep() {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.value = 800; gain.gain.value = 0.1;
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); setTimeout(() => { osc.stop(); audioCtx.close(); }, 80);
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.value = 800; gain.gain.value = 0.1;
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); setTimeout(() => { osc.stop(); audioCtx.close(); }, 80);
+        } catch (e) {}
     }
 
     function copyData() {
+        if (!resultField.value) return;
         navigator.clipboard.writeText(resultField.value).then(() => alert('Скопійовано!'));
     }
 
     function clearData() {
-        if(confirm("Очистити?")) {
-            resultField.value = ''; scannedCodes.clear();
-            counter.textContent = 'Всього: 0'; localStorage.removeItem(STORAGE_KEY);
+        if(confirm("Очистити список?")) {
+            scannedCodes.clear();
+            updateDisplay();
+            localStorage.removeItem(STORAGE_KEY);
         }
     }
-</script>
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log("PWA зареєстровано!"));
-  }
 </script>
 </body>
 </html>
