@@ -204,7 +204,7 @@
         if (!code || scannedCodes.has(code)) return false;
         scannedCodes.add(code);
         updateDisplay();
-        playBeep();
+        vibrateDevice(); // Тепер тут вібрація замість playBeep()
         return true;
     }
 
@@ -213,6 +213,7 @@
             manualInput.value = '';
             manualInput.blur();
         } else if (manualInput.value.trim() !== "") {
+            if ("vibrate" in navigator) navigator.vibrate([50, 50, 50]); // Подвійна вібрація на помилку
             alert("Цей номер вже додано");
         }
     }
@@ -250,15 +251,10 @@
         } catch (e) { alert("Помилка ліхтарика"); }
     }
 
-    function playBeep() {
-        try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.frequency.value = 800; gain.gain.value = 0.1;
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); setTimeout(() => { osc.stop(); audioCtx.close(); }, 80);
-        } catch (e) {}
+    function vibrateDevice() {
+        if ("vibrate" in navigator) {
+            navigator.vibrate(100); // Вібрувати 100мс
+        }
     }
 
     function copyData(event) {
@@ -298,4 +294,5 @@
 </script>
 </body>
 </html>
+
 
