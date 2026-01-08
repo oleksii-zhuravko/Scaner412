@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
@@ -63,6 +63,11 @@
 
 <video id="video"></video>
 
+<!-- 🔽 Audio beep -->
+<audio id="beep" preload="auto">
+  <source src="data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEA..." type="audio/wav">
+</audio>
+
 <div class="manual-input-group">
     <input id="manualInput" type="tel" placeholder="Ввести вручну...">
     <button id="addBtn">➕</button>
@@ -95,6 +100,12 @@ let scanCooldown = false;
 
 const scannedCodes = new Set();
 
+function beep(){
+    const a=document.getElementById("beep");
+    a.currentTime=0;
+    a.play();
+}
+
 function loadSaved(){
     const saved = localStorage.getItem(STORAGE_KEY);
     if(saved){
@@ -121,6 +132,7 @@ function process(code){
     scannedCodes.add(code);
     updateUI();
     vibrate();
+    beep();  // 🔔 Додано
     return true;
 }
 
