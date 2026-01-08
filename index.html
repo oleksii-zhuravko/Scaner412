@@ -2,246 +2,158 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>СКАНЕР 412</title>
+    <title>СКАНЕР 412 PRO</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
-
     <script src="zxing.js"></script>
 
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
-        html, body { margin:0; padding:0; overflow:hidden; height:100%; font-family: -apple-system, system-ui, sans-serif; background:#f8f9fa; }
+        html, body { margin:0; padding:0; overflow:hidden; height:100%; font-family: -apple-system, sans-serif; background:#000; }
 
-        h2 { text-align:center; margin:10px 0; font-weight:700; color: #1a1a1a; font-size: 24px; }
+        h2 { text-align:center; margin:10px 0; font-weight:700; color: #fff; font-size: 20px; position: absolute; width: 100%; top: 0; z-index: 10; }
 
-        video {
-            width: 100%; max-width: 600px; height: 22vh; border-radius: 12px;
-            background:#000; margin:auto; display:block; object-fit:cover;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        .video-container { position: relative; width: 100%; height: 35vh; background: #000; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Рамка для довгих кодів Code 128 */
+        .scan-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center; pointer-events: none;
+        }
+        .scan-region {
+            width: 85%; height: 40%;
+            border: 3px solid #4caf50; border-radius: 12px;
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .scan-region::after {
+            content: ""; position: absolute; top: 50%; left: 0; width: 100%;
+            height: 2px; background: #ff0000; box-shadow: 0 0 10px #ff0000;
+            animation: scan-line 2.5s infinite ease-in-out;
+        }
+        @keyframes scan-line { 0% { top: 20%; } 50% { top: 80%; } 100% { top: 20%; } }
+
+        .app-body { 
+            background: #f8f9fa; height: 67vh; border-radius: 20px 20px 0 0; 
+            position: relative; z-index: 5; margin-top: -20px; padding: 15px;
+            display: flex; flex-direction: column; box-shadow: 0 -5px 15px rgba(0,0,0,0.3);
         }
 
-        .manual-input-group { max-width:600px; margin:auto; display:flex; gap:10px; padding:10px 12px 0; }
-        #manualInput { flex:1; font-size:18px; padding:15px; border-radius:12px; border:1px solid #ccc; user-select:text; }
-        #addBtn { padding:0 25px; border-radius:12px; border:none; background:#4caf50; color:white; font-size:24px; cursor: pointer; }
+        .manual-input-group { display:flex; gap:10px; margin-bottom: 10px; }
+        #manualInput { flex:1; font-size:18px; padding:15px; border-radius:12px; border:1px solid #ccc; user-select: text; }
+        #addBtn { padding:0 25px; border-radius:12px; border:none; background:#4caf50; color:white; font-size:24px; }
 
-        #counter { text-align:center; margin:10px 0; font-size:16px; font-weight:700; color: #495057; }
+        #counter { text-align:center; margin-bottom: 8px; font-weight:700; color: #495057; font-size: 16px; }
 
         textarea {
-            width: calc(100% - 24px); max-width:600px; height: 160px; margin:auto; display:block; padding:15px;
-            border-radius:12px; border:1px solid #ced4da; font-size:18px; resize:none; background:white;
-            user-select:text; white-space:pre; font-family: monospace;
+            flex: 1; width: 100%; margin-bottom: 10px; padding:12px;
+            border-radius:12px; border:1px solid #ced4da; font-size:18px; resize:none;
+            font-family: 'Courier New', monospace; background: #fff; color: #000; user-select: text;
         }
 
-        .controls { max-width:600px; margin:10px auto; display:flex; flex-direction:column; gap:10px; padding:0 12px; }
+        .controls { display:flex; flex-direction:column; gap:8px; }
+        .row { display:flex; gap:8px; }
+        button { padding: 18px; border-radius: 14px; border: 1px solid #ced4da; font-weight: 700; font-size: 18px; background: #fff; cursor: pointer; }
+        #torchBtn { display:none; background:#fff3cd; flex:1; border-color: #ffeeba; }
+        #undoBtn { background:#e9ecef; flex:1; }
+        #copyBtn { background:#e7f3ff; color:#0056b3; border-color: #cfe2ff; }
+        .clearBtn { background:#fff5f5; color:#d93025; border-color: #fad2cf; }
 
-        .row { display:flex; gap:10px; width: 100%; }
-        
-        button { 
-            padding: 18px; border-radius: 14px; border: 1px solid #ced4da; 
-            font-weight: 700; font-size: 18px; background: white; 
-            cursor: pointer; transition: transform 0.1s, opacity 0.2s;
-        }
-        
-        button:active { transform: scale(0.98); opacity: 0.8; }
-
-        #torchBtn, #undoBtn { flex: 1; }
-        #torchBtn { display:none; background:#fff3cd; border-color:#ffeeba; color:#856404; justify-content: center; align-items: center; }
-        #undoBtn { background:#e9ecef; }
-        #copyBtn { background:#e7f3ff; border-color:#cfe2ff; color:#0056b3; }
-        .clearBtn { background:#fff5f5; border-color:#fad2cf; color:#d93025; }
-
-        /* Модальне вікно */
         #modal {
             display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-            background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;
-            backdrop-filter: blur(4px);
+            background:rgba(0,0,0,0.7); z-index:2000; justify-content:center; align-items:center;
+            backdrop-filter: blur(3px);
         }
-        .modal-box {
-            background:white; padding:25px; border-radius:20px; text-align:center; width:85%; max-width:400px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        }
+        .modal-box { background:white; padding:30px; border-radius:24px; text-align:center; width:85%; max-width:400px; }
     </style>
 </head>
 <body>
 
-<h2>СКАНЕР 412</h2>
+<h2>СКАНЕР 412 PRO</h2>
 
-<video id="video" autoplay muted playsinline></video>
-
-<audio id="beep" preload="auto">
-  <source src="https://raw.githubusercontent.com/renzofiorella/barcode-scanner-pwa/master/src/assets/beep.mp3" type="audio/mpeg">
-</audio>
-
-<div class="manual-input-group">
-    <input id="manualInput" type="tel" placeholder="Ввести вручну..." inputmode="numeric">
-    <button id="addBtn">➕</button>
+<div class="video-container">
+    <video id="video" autoplay muted playsinline></video>
+    <div class="scan-overlay">
+        <div class="scan-region"></div>
+    </div>
 </div>
 
-<div id="counter">Всього відскановано: 0</div>
-
-<textarea id="result" readonly placeholder="Список порожній..."></textarea>
-
-<div class="controls">
-    <div class="row">
-        <button id="torchBtn">🔦 Ліхтарик</button>
-        <button id="undoBtn">↩ Скасувати</button>
+<div class="app-body">
+    <div class="manual-input-group">
+        <input id="manualInput" type="tel" placeholder="Ввести вручну..." inputmode="numeric">
+        <button id="addBtn">➕</button>
     </div>
-    <button id="copyBtn">📋 Скопіювати все</button>
-    <button class="clearBtn" id="clearAllBtn">🗑 Очистити все</button>
+
+    <div id="counter">Всього відскановано: 0</div>
+    <textarea id="result" readonly placeholder="Список порожній..."></textarea>
+
+    <div class="controls">
+        <div class="row">
+            <button id="torchBtn">🔦 Ліхтарик</button>
+            <button id="undoBtn">↩ Скасувати</button>
+        </div>
+        <button id="copyBtn">📋 Скопіювати все</button>
+        <button class="clearBtn" id="clearAllBtn">🗑 Очистити все</button>
+    </div>
 </div>
 
 <div id="modal">
     <div class="modal-box">
         <h3 style="margin-top:0">Очистити список?</h3>
-        <p style="color:#666">Всі дані будуть видалені безповоротно.</p>
         <div class="row">
             <button onclick="closeModal()" style="flex:1">Назад</button>
-            <button onclick="confirmClear()" style="flex:1; background:#ff4d4d; color:white; border:none">Видалити</button>
+            <button onclick="confirmClear()" style="flex:1; background:#d93025; color:white; border:none">Видалити</button>
         </div>
     </div>
 </div>
 
+<audio id="beep" preload="auto">
+  <source src="https://raw.githubusercontent.com/renzofiorella/barcode-scanner-pwa/master/src/assets/beep.mp3" type="audio/mpeg">
+</audio>
+
 <script>
 const STORAGE_KEY = "scanner412_codes";
 
-// --- РОЗШИРЕНІ НАЛАШТУВАННЯ ДЛЯ ЧИСЛОВИХ ШТРИХ-КОДІВ ---
+// --- КОНФІГУРАЦІЯ ДЛЯ ВАЖКИХ CODE 128 ---
 const hints = new Map();
-const formats = [
-    ZXing.BarcodeFormat.CODE_128, // Найпопулярніший для логістики та цифр
-    ZXing.BarcodeFormat.CODE_39,  // Старий стандарт для промисловості
-    ZXing.BarcodeFormat.EAN_13,   // Товари в магазинах
-    ZXing.BarcodeFormat.EAN_8,    // Малі товари
-    ZXing.BarcodeFormat.ITF,      // Тільки цифри (часто на коробках)
-    ZXing.BarcodeFormat.UPC_A     // Американський стандарт цифр
-];
-
-hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-// 🚀 Максимальна потужність розпізнавання (споживає більше батареї, але бачить складні коди)
+hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+    ZXing.BarcodeFormat.CODE_128,
+    ZXing.BarcodeFormat.CODE_39,
+    ZXing.BarcodeFormat.ITF,
+    ZXing.BarcodeFormat.EAN_13
+]);
 hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-// Допомагає розпізнати код, якщо він перевернутий або боком
-hints.set(ZXing.DecodeHintType.ASSUME_CODE_39_CHECK_DIGIT, true);
+// Додаємо підказку про те, що код може бути не в центрі або деформований
+hints.set(ZXing.DecodeHintType.PURE_BARCODE, false); 
 
 const codeReader = new ZXing.BrowserBarcodeReader(hints);
-
-// --- ОНОВЛЕНА ФУНКЦІЯ ПРОЦЕСУ (щоб точно бачити числа) ---
-function process(code){
-    // Видаляємо зайві пробіли та невидимі символи
-    code = code.trim().replace(/[^0-9A-Za-z]/g, ''); 
-    
-    if(!code || scannedCodes.has(code)) return false;
-    
-    scannedCodes.add(code);
-    updateUI();
-    vibrate(100); // Довший вібровідгук для впевненості
-    beep();
-    return true;
-}
 const video = document.getElementById("video");
-const manualInput = document.getElementById("manualInput");
 const resultField = document.getElementById("result");
 const counter = document.getElementById("counter");
 const torchBtn = document.getElementById("torchBtn");
-
 let videoStream = null;
-let isTorchOn = false;
 let scanCooldown = false;
 const scannedCodes = new Set();
 
-if ('serviceWorker' in navigator) { 
-    navigator.serviceWorker.register('sw.js').catch(err => console.log("SW error:", err)); 
-}
-
-manualInput.addEventListener('blur', () => {
-    setTimeout(() => { window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }); }, 150);
-});
-
-function beep(){
-    const a = document.getElementById("beep");
-    if(a) { a.currentTime = 0; a.play().catch(()=>{}); }
-}
-
-function updateUI(){
-    resultField.value = Array.from(scannedCodes).join("\n");
-    counter.textContent = `Всього відскановано: ${scannedCodes.size}`;
-    resultField.scrollTop = resultField.scrollHeight;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
-}
-
-function vibrate(ms = 60){ if("vibrate" in navigator) navigator.vibrate(ms); }
-
-function process(code){
-    code = code.trim();
-    if(!code || scannedCodes.has(code)) return false;
-    scannedCodes.add(code);
-    updateUI();
-    vibrate();
-    beep();
-    return true;
-}
-
-// ПЕРЕВІРКА ПІДТРИМКИ ЛІХТАРИКА
-function checkTorch() {
-    if (!videoStream) return;
-    try {
-        const track = videoStream.getVideoTracks()[0];
-        const caps = track.getCapabilities();
-        if (caps && caps.torch) {
-            torchBtn.style.display = "flex";
-        }
-    } catch (e) { console.log("Torch not supported"); }
-}
-
-document.getElementById("addBtn").onclick = ()=>{
-    if(process(manualInput.value)){ manualInput.value=""; manualInput.blur(); }
-};
-
-manualInput.onkeypress = e=>{ if(e.key==="Enter") document.getElementById("addBtn").click(); };
-
-document.getElementById("undoBtn").onclick = ()=>{
-    if(scannedCodes.size === 0) return;
-    const arr = Array.from(scannedCodes);
-    arr.pop();
-    scannedCodes.clear();
-    arr.forEach(v => scannedCodes.add(v));
-    updateUI();
-    vibrate(40);
-};
-
-document.getElementById("copyBtn").onclick = function(){
-    if(!resultField.value) return;
-    navigator.clipboard.writeText(resultField.value).then(() => {
-        const originalText = this.textContent;
-        this.textContent = "✅ Скопійовано!";
-        this.style.background = "#d4edda";
-        setTimeout(() => { 
-            this.textContent = originalText;
-            this.style.background = "#e7f3ff";
-        }, 1500);
-    });
-};
-
-function closeModal() { document.getElementById("modal").style.display = "none"; }
-document.getElementById("clearAllBtn").onclick = () => { document.getElementById("modal").style.display = "flex"; };
-function confirmClear() {
-    scannedCodes.clear();
-    updateUI();
-    closeModal();
-}
-
 async function startCamera() {
     try {
-        const constraints = { video: { facingMode: "environment" } };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        video.srcObject = stream;
-        videoStream = stream;
-        
+        const constraints = { 
+            video: { 
+                facingMode: "environment",
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+                focusMode: "continuous"
+            } 
+        };
+        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = videoStream;
         await video.play();
-        setTimeout(checkTorch, 1000);
+        
+        setTimeout(checkTorch, 1500);
 
-        codeReader.decodeFromVideoDevice(null, video, (res, err) => {
+        // Збільшуємо інтервал між спробами декодування, щоб покращити якість аналізу кожного кадру
+        codeReader.decodeFromVideoDevice(null, video, (res) => {
             if (res && !scanCooldown) {
                 if (process(res.text)) {
                     scanCooldown = true;
@@ -250,26 +162,74 @@ async function startCamera() {
             }
         });
     } catch (err) {
-        console.error("Camera Error:", err);
-        alert("Помилка камери. Перевірте дозволи у налаштуваннях браузера.");
+        alert("Камера не активна. Спробуйте оновити сторінку.");
     }
 }
 
-torchBtn.onclick = async () => {
-    if (!videoStream) return;
+function process(code) {
+    code = code.trim();
+    if (!code || scannedCodes.has(code)) return false;
+    scannedCodes.add(code);
+    updateUI();
+    if("vibrate" in navigator) navigator.vibrate(100);
+    document.getElementById("beep").play().catch(()=>{});
+    return true;
+}
+
+function updateUI() {
+    resultField.value = Array.from(scannedCodes).join("\n");
+    counter.textContent = `Всього відскановано: ${scannedCodes.size}`;
+    resultField.scrollTop = resultField.scrollHeight;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
+}
+
+function checkTorch() {
     try {
         const track = videoStream.getVideoTracks()[0];
-        isTorchOn = !isTorchOn;
-        await track.applyConstraints({ advanced:[{ torch:isTorchOn }] });
-        torchBtn.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
-    } catch(e) { console.error(e); }
+        const caps = track.getCapabilities();
+        if (caps && caps.torch) torchBtn.style.display = "flex";
+    } catch(e) {}
+}
+
+torchBtn.onclick = async () => {
+    try {
+        const track = videoStream.getVideoTracks()[0];
+        const state = torchBtn.innerText.includes("Вимкнути");
+        await track.applyConstraints({ advanced: [{ torch: !state }] });
+        torchBtn.innerHTML = !state ? "🔦 Вимкнути" : "🔦 Ліхтарик";
+    } catch(e) {}
 };
 
+document.getElementById("addBtn").onclick = () => {
+    const val = document.getElementById("manualInput").value.trim();
+    if(process(val)) document.getElementById("manualInput").value = "";
+};
+
+document.getElementById("undoBtn").onclick = () => {
+    const arr = Array.from(scannedCodes);
+    if(arr.length > 0) {
+        arr.pop();
+        scannedCodes.clear();
+        arr.forEach(v => scannedCodes.add(v));
+        updateUI();
+    }
+};
+
+document.getElementById("copyBtn").onclick = function() {
+    if(!resultField.value) return;
+    navigator.clipboard.writeText(resultField.value);
+    this.innerText = "✅ Готово!";
+    setTimeout(() => this.innerText = "📋 Скопіювати все", 1500);
+};
+
+document.getElementById("clearAllBtn").onclick = () => document.getElementById("modal").style.display = "flex";
+function closeModal() { document.getElementById("modal").style.display = "none"; }
+function confirmClear() { scannedCodes.clear(); updateUI(); closeModal(); }
+
 const saved = localStorage.getItem(STORAGE_KEY);
-if(saved){ JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
+if(saved) { JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
 
 startCamera();
 </script>
 </body>
 </html>
-
