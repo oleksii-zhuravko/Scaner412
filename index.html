@@ -106,18 +106,38 @@
 <script>
 const STORAGE_KEY = "scanner412_codes";
 
-// --- НАЛАШТУВАННЯ СКАНЕРА ---
+// --- РОЗШИРЕНІ НАЛАШТУВАННЯ ДЛЯ ЧИСЛОВИХ ШТРИХ-КОДІВ ---
 const hints = new Map();
-hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-    ZXing.BarcodeFormat.CODE_128,
-    ZXing.BarcodeFormat.CODE_39,
-    ZXing.BarcodeFormat.EAN_13,
-    ZXing.BarcodeFormat.ITF,
-    ZXing.BarcodeFormat.UPC_A
-]);
+const formats = [
+    ZXing.BarcodeFormat.CODE_128, // Найпопулярніший для логістики та цифр
+    ZXing.BarcodeFormat.CODE_39,  // Старий стандарт для промисловості
+    ZXing.BarcodeFormat.EAN_13,   // Товари в магазинах
+    ZXing.BarcodeFormat.EAN_8,    // Малі товари
+    ZXing.BarcodeFormat.ITF,      // Тільки цифри (часто на коробках)
+    ZXing.BarcodeFormat.UPC_A     // Американський стандарт цифр
+];
+
+hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+// 🚀 Максимальна потужність розпізнавання (споживає більше батареї, але бачить складні коди)
 hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+// Допомагає розпізнати код, якщо він перевернутий або боком
+hints.set(ZXing.DecodeHintType.ASSUME_CODE_39_CHECK_DIGIT, true);
 
 const codeReader = new ZXing.BrowserBarcodeReader(hints);
+
+// --- ОНОВЛЕНА ФУНКЦІЯ ПРОЦЕСУ (щоб точно бачити числа) ---
+function process(code){
+    // Видаляємо зайві пробіли та невидимі символи
+    code = code.trim().replace(/[^0-9A-Za-z]/g, ''); 
+    
+    if(!code || scannedCodes.has(code)) return false;
+    
+    scannedCodes.add(code);
+    updateUI();
+    vibrate(100); // Довший вібровідгук для впевненості
+    beep();
+    return true;
+}
 const video = document.getElementById("video");
 const manualInput = document.getElementById("manualInput");
 const resultField = document.getElementById("result");
@@ -252,3 +272,4 @@ startCamera();
 </script>
 </body>
 </html>
+
