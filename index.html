@@ -135,9 +135,11 @@
 <textarea id="result" readonly placeholder="Список порожній..."></textarea>
 
 <div class="controls">
-    <button id="torchBtn" onclick="toggleTorch()">🔦 Ліхтарик: ВИМК</button>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+  <button id="torchBtn" style="flex:1">🔦 Ліхтарик</button>
+  <button id="undoBtn" style="flex:1">↩ Скасувати</button>
+    </div>
     <button onclick="copyData(event)" id="copyBtn" style="background: #e7f3ff; color: #0056b3; border-color: #cfe2ff;">📋 Скопіювати все</button>
-    <button onclick="undoLast()" style="background: #fffaf0; border-color: #ffe8cc; color: #a15d00;"> ↩ Скасувати</button>
     <button onclick="showClearModal()" style="color: #d93025; background: #fff5f5; border-color: #fad2cf;">🗑 Очистити все</button>
 </div>
 
@@ -328,4 +330,5 @@ function playBeepUndo() {
 </script>
 </body>
 </html>
+
 
