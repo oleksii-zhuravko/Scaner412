@@ -110,6 +110,11 @@ const STORAGE_KEY = "scanner412_codes";
 const scannedCodes = new Set();
 let isTorchOn = false;
 
+// Змінні для фільтрації помилок
+let lastDetectedCode = null;
+let detectionCount = 0;
+const REQUIRED_CONFIRMATIONS = 3; // Скільки разів поспіль треба побачити код
+
 function startQuagga() {
     Quagga.init({
         inputStream: {
@@ -123,17 +128,17 @@ function startQuagga() {
             },
         },
         locator: {
-            patchSize: "large", // Оптимізовано для довгих кодів
+            patchSize: "medium", // Medium краще для коротких кодів, ніж Large
             halfSample: true
         },
         decoder: {
-            readers: ["code_128_reader", "code_39_reader", "ean_reader", "i2of5_reader"]
+            // Залишаємо тільки Code 128 та Code 39 для точності
+            readers: ["code_128_reader", "code_39_reader"]
         }
     }, function(err) {
         if (err) { console.error(err); return; }
         Quagga.start();
         
-        // Перевірка ліхтарика через 1.5 сек після старту
         setTimeout(() => {
             const track = Quagga.CameraAccess.getActiveTrack();
             if (track && track.getCapabilities) {
@@ -145,18 +150,38 @@ function startQuagga() {
 }
 
 Quagga.onDetected((data) => {
-    if (data.codeResult && data.codeResult.code) {
-        process(data.codeResult.code);
+    const code = data.codeResult.code;
+
+    // 1. Фільтр довжини (ігноруємо все, що не в діапазоні 3-6 символів)
+    if (code.length < 3 || code.length > 5) return;
+
+    // 2. Фільтр стабільності (код має повторитися кілька разів)
+    if (code === lastDetectedCode) {
+        detectionCount++;
+    } else {
+        lastDetectedCode = code;
+        detectionCount = 0;
+    }
+
+    if (detectionCount >= REQUIRED_CONFIRMATIONS) {
+        process(code);
+        detectionCount = 0; // Скидаємо після успіху
+        lastDetectedCode = null;
     }
 });
 
 function process(code) {
     code = code.trim();
-    if (!code || scannedCodes.has(code) || code.length < 4) return false;
+    // Фінальна перевірка перед додаванням
+    if (!code || scannedCodes.has(code)) return false;
+    
     scannedCodes.add(code);
     updateUI();
+    
     if ("vibrate" in navigator) navigator.vibrate(80);
-    document.getElementById("beep").play().catch(()=>{});
+    const audio = document.getElementById("beep");
+    if (audio) { audio.currentTime = 0; audio.play().catch(()=>{}); }
+    
     return true;
 }
 
@@ -167,6 +192,7 @@ function updateUI() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
 }
 
+// Решта кнопок (Ліхтарик, Копіювати, Очистити) залишаються без змін...
 document.getElementById("torchBtn").onclick = function() {
     const track = Quagga.CameraAccess.getActiveTrack();
     isTorchOn = !isTorchOn;
@@ -193,7 +219,9 @@ document.getElementById("undoBtn").onclick = () => {
 };
 
 document.getElementById("copyBtn").onclick = function() {
-    navigator.clipboard.writeText(document.getElementById("result").value);
+    const text = document.getElementById("result").value;
+    if (!text) return;
+    navigator.clipboard.writeText(text);
     const oldText = this.innerText;
     this.innerText = "✅ Скопійовано!";
     setTimeout(() => this.innerText = oldText, 1500);
@@ -208,23 +236,11 @@ if (saved) { JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
 
 startQuagga();
 
-    // Блокування подвійного тапу (запобігає випадковому зуму)
-document.addEventListener('touchstart', function (event) {
-    if (event.touches.length > 1) {
-        event.preventDefault();
-    }
-}, { passive: false });
-
-let lastTouchEnd = 0;
-document.addEventListener('touchend', function (event) {
-    let now = (new Date()).getTime();
-    if (now - lastTouchEnd <= 300) {
-        event.preventDefault();
-    }
-    lastTouchEnd = now;
-}, false);
+// Блокування зуму
+document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 </script>
 </body>
 </html>
+
 
 
