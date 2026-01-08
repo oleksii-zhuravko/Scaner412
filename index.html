@@ -14,30 +14,16 @@
         h2 { text-align:center; margin:10px 0; font-weight:700; color: #1a1a1a; font-size: 24px; }
 
         video {
-            width: 100%;
-            max-width: 600px;
-            height: 22vh;
-            border-radius: 12px;
-            background:#000;
-            margin:auto;
-            display:block;
-            object-fit:cover;
+            width: 100%; max-width: 600px; height: 22vh; border-radius: 12px;
+            background:#000; margin:auto; display:block; object-fit:cover;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
-        .manual-input-group {
-            max-width:600px; margin:auto; display:flex; gap:10px; padding:10px 12px 0;
-        }
-        #manualInput {
-            flex:1; font-size:18px; padding:15px; border-radius:12px; border:1px solid #ccc; user-select:text;
-        }
-        #addBtn {
-            padding:0 25px; border-radius:12px; border:none; background:#4caf50; color:white; font-size:24px; cursor: pointer;
-        }
+        .manual-input-group { max-width:600px; margin:auto; display:flex; gap:10px; padding:10px 12px 0; }
+        #manualInput { flex:1; font-size:18px; padding:15px; border-radius:12px; border:1px solid #ccc; user-select:text; }
+        #addBtn { padding:0 25px; border-radius:12px; border:none; background:#4caf50; color:white; font-size:24px; cursor: pointer; }
 
-        #counter {
-            text-align:center; margin:10px 0; font-size:16px; font-weight:700; color: #495057;
-        }
+        #counter { text-align:center; margin:10px 0; font-size:16px; font-weight:700; color: #495057; }
 
         textarea {
             width: calc(100% - 24px); max-width:600px; height: 160px; margin:auto; display:block; padding:15px;
@@ -49,31 +35,28 @@
 
         .row { display:flex; gap:10px; width: 100%; }
         
-        /* Збільшена висота та шрифт кнопок */
         button { 
-            padding: 18px; 
-            border-radius: 14px; 
-            border: 1px solid #ced4da; 
-            font-weight: 700; 
-            font-size: 18px; 
-            background: white; 
-            cursor: pointer; 
-            transition: transform 0.1s, opacity 0.2s;
+            padding: 18px; border-radius: 14px; border: 1px solid #ced4da; 
+            font-weight: 700; font-size: 18px; background: white; 
+            cursor: pointer; transition: transform 0.1s, opacity 0.2s;
         }
         
-        /* Ефект натискання */
-        button:active { 
-            transform: scale(0.98); 
-            opacity: 0.8; 
-        }
+        button:active { transform: scale(0.98); opacity: 0.8; }
 
         #torchBtn, #undoBtn { flex: 1; }
-
-        #torchBtn { display:none; background:#fff3cd; border-color:#ffeeba; color:#856404; }
+        #torchBtn { display:none; background:#fff3cd; border-color:#ffeeba; color:#856404; justify-content: center; align-items: center; }
         #undoBtn { background:#e9ecef; }
         #copyBtn { background:#e7f3ff; border-color:#cfe2ff; color:#0056b3; }
         .clearBtn { background:#fff5f5; border-color:#fad2cf; color:#d93025; }
 
+        /* Модальне вікно */
+        #modal {
+            display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;
+        }
+        .modal-box {
+            background:white; padding:25px; border-radius:20px; text-align:center; width:85%; max-width:400px;
+        }
     </style>
 </head>
 <body>
@@ -104,10 +87,33 @@
     <button class="clearBtn" id="clearAllBtn">🗑 Очистити все</button>
 </div>
 
+<div id="modal">
+    <div class="modal-box">
+        <h3 style="margin-top:0">Очистити список?</h3>
+        <p style="color:#666">Всі відскановані номери будуть видалені.</p>
+        <div class="row">
+            <button onclick="closeModal()" style="flex:1">Назад</button>
+            <button onclick="confirmClear()" style="flex:1; background:#ff4d4d; color:white; border:none">Видалити</button>
+        </div>
+    </div>
+</div>
+
 <script>
-// (Логіка залишається без змін, оскільки вона працювала коректно)
 const STORAGE_KEY = "scanner412_codes";
 const codeReader = new ZXing.BrowserBarcodeReader();
+
+// Налаштування для зчитування числових штрих-кодів (1D)
+const hints = new Map();
+hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+    ZXing.BarcodeFormat.CODE_128,
+    ZXing.BarcodeFormat.CODE_39,
+    ZXing.BarcodeFormat.EAN_13,
+    ZXing.BarcodeFormat.EAN_8,
+    ZXing.BarcodeFormat.UPC_A,
+    ZXing.BarcodeFormat.ITF
+]);
+codeReader.hints = hints;
+
 const video = document.getElementById("video");
 const manualInput = document.getElementById("manualInput");
 const resultField = document.getElementById("result");
@@ -124,23 +130,11 @@ function beep(){
     if(a) { a.currentTime = 0; a.play().catch(()=>{}); }
 }
 
-function loadSaved(){
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if(saved){
-        JSON.parse(saved).forEach(v => scannedCodes.add(v));
-        updateUI();
-    }
-}
-
-function save(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
-}
-
 function updateUI(){
     resultField.value = Array.from(scannedCodes).join("\n");
     counter.textContent = `Всього відскановано: ${scannedCodes.size}`;
     resultField.scrollTop = resultField.scrollHeight;
-    save();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
 }
 
 function vibrate(){ if("vibrate" in navigator) navigator.vibrate(60); }
@@ -156,15 +150,7 @@ function process(code){
 }
 
 document.getElementById("addBtn").onclick = ()=>{
-    if(process(manualInput.value)){
-        manualInput.value="";
-    } else if(manualInput.value.trim()!==""){
-        alert("Вже є або порожньо!");
-    }
-};
-
-manualInput.onkeypress = e=>{
-    if(e.key==="Enter") document.getElementById("addBtn").click();
+    if(process(manualInput.value)){ manualInput.value=""; }
 };
 
 document.getElementById("undoBtn").onclick = ()=>{
@@ -184,49 +170,29 @@ document.getElementById("copyBtn").onclick = function(){
         this.textContent = "✅ Скопійовано!";
         setTimeout(() => this.textContent = originalText, 1500);
     });
-    vibrate();
 };
 
-document.getElementById("clearAllBtn").onclick = ()=>{
-    if(confirm("Очистити весь список?")) {
-        scannedCodes.clear();
-        updateUI();
-    }
-};
-
-async function toggleTorch(){
-    try{
-        const track = videoStream.getVideoTracks()[0];
-        isTorchOn = !isTorchOn;
-        await track.applyConstraints({ advanced:[{ torch:isTorchOn }] });
-        torchBtn.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
-    }catch(e){ console.error(e); }
-}
-
-torchBtn.onclick = toggleTorch;
-
-function checkTorch(){
-    try{
-        const track = videoStream.getVideoTracks()[0];
-        const caps = track.getCapabilities();
-        if(caps && caps.torch) {
-            torchBtn.style.display = "flex"; 
-            torchBtn.style.justifyContent = "center";
-            torchBtn.style.alignItems = "center";
-        }
-    }catch(e){}
+// Логіка модального вікна
+function closeModal() { document.getElementById("modal").style.display = "none"; }
+document.getElementById("clearAllBtn").onclick = () => { document.getElementById("modal").style.display = "flex"; };
+function confirmClear() {
+    scannedCodes.clear();
+    updateUI();
+    closeModal();
 }
 
 async function startCamera(){
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video:{ facingMode:"environment" },
-            audio:false
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" } });
         video.srcObject = stream;
         videoStream = stream;
         video.play();
-        setTimeout(checkTorch, 1000);
+        
+        setTimeout(() => {
+            const track = stream.getVideoTracks()[0];
+            const caps = track.getCapabilities();
+            if(caps && caps.torch) torchBtn.style.display = "flex";
+        }, 1000);
 
         codeReader.decodeFromVideoDevice(null, video, (res)=>{
             if(res && !scanCooldown){
@@ -236,12 +202,21 @@ async function startCamera(){
                 }
             }
         });
-    } catch (err) {
-        alert("Помилка камери: " + err);
-    }
+    } catch (err) { console.error(err); }
 }
 
+torchBtn.onclick = async () => {
+    const track = videoStream.getVideoTracks()[0];
+    isTorchOn = !isTorchOn;
+    await track.applyConstraints({ advanced:[{ torch:isTorchOn }] });
+    torchBtn.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
+};
+
 loadSaved();
+function loadSaved(){
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if(saved){ JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
+}
 startCamera();
 </script>
 </body>
