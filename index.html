@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <title>СКАНЕР 412</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
 
     <script src="zxing.js"></script>
 
@@ -65,7 +68,7 @@
 
 <h2>СКАНЕР 412</h2>
 
-<video id="video"></video>
+<video id="video" autoplay muted playsinline></video>
 
 <audio id="beep" preload="auto">
   <source src="https://raw.githubusercontent.com/renzofiorella/barcode-scanner-pwa/master/src/assets/beep.mp3" type="audio/mpeg">
@@ -103,7 +106,7 @@
 <script>
 const STORAGE_KEY = "scanner412_codes";
 
-// --- НАЛАШТУВАННЯ СКАНЕРА (Hints) ---
+// --- НАЛАШТУВАННЯ СКАНЕРА ---
 const hints = new Map();
 hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
     ZXing.BarcodeFormat.CODE_128,
@@ -112,25 +115,24 @@ hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
     ZXing.BarcodeFormat.ITF,
     ZXing.BarcodeFormat.UPC_A
 ]);
-// 🚀 Вмикаємо посилений пошук для зім'ятих/деформованих кодів
 hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
 const codeReader = new ZXing.BrowserBarcodeReader(hints);
-
 const video = document.getElementById("video");
 const manualInput = document.getElementById("manualInput");
 const resultField = document.getElementById("result");
 const counter = document.getElementById("counter");
 const torchBtn = document.getElementById("torchBtn");
+
 let videoStream = null;
 let isTorchOn = false;
 let scanCooldown = false;
 const scannedCodes = new Set();
 
-// Реєстрація Service Worker для офлайну
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+if ('serviceWorker' in navigator) { 
+    navigator.serviceWorker.register('sw.js').catch(err => console.log("SW error:", err)); 
+}
 
-// Повернення сторінки після клавіатури
 manualInput.addEventListener('blur', () => {
     setTimeout(() => { window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }); }, 150);
 });
@@ -157,6 +159,18 @@ function process(code){
     vibrate();
     beep();
     return true;
+}
+
+// ПЕРЕВІРКА ПІДТРИМКИ ЛІХТАРИКА
+function checkTorch() {
+    if (!videoStream) return;
+    try {
+        const track = videoStream.getVideoTracks()[0];
+        const caps = track.getCapabilities();
+        if (caps && caps.torch) {
+            torchBtn.style.display = "flex";
+        }
+    } catch (e) { console.log("Torch not supported"); }
 }
 
 document.getElementById("addBtn").onclick = ()=>{
@@ -198,22 +212,15 @@ function confirmClear() {
 
 async function startCamera() {
     try {
-        // Спочатку просто запитуємо потік без складних налаштувань
-        const constraints = { 
-            video: { facingMode: "environment" } 
-        };
-        
+        const constraints = { video: { facingMode: "environment" } };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
         video.srcObject = stream;
         videoStream = stream;
         
-        // Чекаємо, поки відео почне грати
         await video.play();
-        
-        // Тільки після успішного запуску перевіряємо ліхтарик
         setTimeout(checkTorch, 1000);
 
-        // Запускаємо сканування
         codeReader.decodeFromVideoDevice(null, video, (res, err) => {
             if (res && !scanCooldown) {
                 if (process(res.text)) {
@@ -221,22 +228,23 @@ async function startCamera() {
                     setTimeout(() => scanCooldown = false, 1500);
                 }
             }
-            // Помилки ігноруємо, щоб не засмічувати консоль
         });
     } catch (err) {
-        console.error("Помилка доступу:", err);
-        alert("Будь ласка, дозвольте доступ до камери в налаштуваннях браузера");
+        console.error("Camera Error:", err);
+        alert("Помилка камери. Перевірте дозволи у налаштуваннях браузера.");
     }
 }
 
 torchBtn.onclick = async () => {
-    const track = videoStream.getVideoTracks()[0];
-    isTorchOn = !isTorchOn;
-    await track.applyConstraints({ advanced:[{ torch:isTorchOn }] });
-    torchBtn.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
+    if (!videoStream) return;
+    try {
+        const track = videoStream.getVideoTracks()[0];
+        isTorchOn = !isTorchOn;
+        await track.applyConstraints({ advanced:[{ torch:isTorchOn }] });
+        torchBtn.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
+    } catch(e) { console.error(e); }
 };
 
-// Завантаження збережених даних
 const saved = localStorage.getItem(STORAGE_KEY);
 if(saved){ JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
 
@@ -244,4 +252,3 @@ startCamera();
 </script>
 </body>
 </html>
-
