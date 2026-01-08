@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <title>СКАНЕР 412</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <link rel="manifest" href="manifest.json">
 
-    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <script src="zxing.js"></script>
 
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -54,9 +53,11 @@
         #modal {
             display:none; position:fixed; top:0; left:0; width:100%; height:100%;
             background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;
+            backdrop-filter: blur(4px);
         }
         .modal-box {
             background:white; padding:25px; border-radius:20px; text-align:center; width:85%; max-width:400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
     </style>
 </head>
@@ -91,7 +92,7 @@
 <div id="modal">
     <div class="modal-box">
         <h3 style="margin-top:0">Очистити список?</h3>
-        <p style="color:#666">Всі відскановані номери будуть видалені.</p>
+        <p style="color:#666">Всі дані будуть видалені безповоротно.</p>
         <div class="row">
             <button onclick="closeModal()" style="flex:1">Назад</button>
             <button onclick="confirmClear()" style="flex:1; background:#ff4d4d; color:white; border:none">Видалити</button>
@@ -101,19 +102,20 @@
 
 <script>
 const STORAGE_KEY = "scanner412_codes";
-const codeReader = new ZXing.BrowserBarcodeReader();
 
-// Налаштування для зчитування числових штрих-кодів (1D)
+// --- НАЛАШТУВАННЯ СКАНЕРА (Hints) ---
 const hints = new Map();
 hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
     ZXing.BarcodeFormat.CODE_128,
     ZXing.BarcodeFormat.CODE_39,
     ZXing.BarcodeFormat.EAN_13,
-    ZXing.BarcodeFormat.EAN_8,
-    ZXing.BarcodeFormat.UPC_A,
-    ZXing.BarcodeFormat.ITF
+    ZXing.BarcodeFormat.ITF,
+    ZXing.BarcodeFormat.UPC_A
 ]);
-codeReader.hints = hints;
+// 🚀 Вмикаємо посилений пошук для зім'ятих/деформованих кодів
+hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+const codeReader = new ZXing.BrowserBarcodeReader(hints);
 
 const video = document.getElementById("video");
 const manualInput = document.getElementById("manualInput");
@@ -123,8 +125,15 @@ const torchBtn = document.getElementById("torchBtn");
 let videoStream = null;
 let isTorchOn = false;
 let scanCooldown = false;
-
 const scannedCodes = new Set();
+
+// Реєстрація Service Worker для офлайну
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+
+// Повернення сторінки після клавіатури
+manualInput.addEventListener('blur', () => {
+    setTimeout(() => { window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }); }, 150);
+});
 
 function beep(){
     const a = document.getElementById("beep");
@@ -138,7 +147,7 @@ function updateUI(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
 }
 
-function vibrate(){ if("vibrate" in navigator) navigator.vibrate(60); }
+function vibrate(ms = 60){ if("vibrate" in navigator) navigator.vibrate(ms); }
 
 function process(code){
     code = code.trim();
@@ -151,8 +160,10 @@ function process(code){
 }
 
 document.getElementById("addBtn").onclick = ()=>{
-    if(process(manualInput.value)){ manualInput.value=""; }
+    if(process(manualInput.value)){ manualInput.value=""; manualInput.blur(); }
 };
+
+manualInput.onkeypress = e=>{ if(e.key==="Enter") document.getElementById("addBtn").click(); };
 
 document.getElementById("undoBtn").onclick = ()=>{
     if(scannedCodes.size === 0) return;
@@ -161,7 +172,7 @@ document.getElementById("undoBtn").onclick = ()=>{
     scannedCodes.clear();
     arr.forEach(v => scannedCodes.add(v));
     updateUI();
-    vibrate();
+    vibrate(40);
 };
 
 document.getElementById("copyBtn").onclick = function(){
@@ -169,11 +180,14 @@ document.getElementById("copyBtn").onclick = function(){
     navigator.clipboard.writeText(resultField.value).then(() => {
         const originalText = this.textContent;
         this.textContent = "✅ Скопійовано!";
-        setTimeout(() => this.textContent = originalText, 1500);
+        this.style.background = "#d4edda";
+        setTimeout(() => { 
+            this.textContent = originalText;
+            this.style.background = "#e7f3ff";
+        }, 1500);
     });
 };
 
-// Логіка модального вікна
 function closeModal() { document.getElementById("modal").style.display = "none"; }
 document.getElementById("clearAllBtn").onclick = () => { document.getElementById("modal").style.display = "flex"; };
 function confirmClear() {
@@ -184,7 +198,12 @@ function confirmClear() {
 
 async function startCamera(){
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" } });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: "environment",
+                advanced: [{ focusMode: "continuous" }] 
+            } 
+        });
         video.srcObject = stream;
         videoStream = stream;
         video.play();
@@ -192,8 +211,10 @@ async function startCamera(){
         setTimeout(() => {
             const track = stream.getVideoTracks()[0];
             const caps = track.getCapabilities();
-            if(caps && caps.torch) torchBtn.style.display = "flex";
-        }, 1000);
+            if(caps && caps.torch) {
+                torchBtn.style.display = "flex";
+            }
+        }, 1200);
 
         codeReader.decodeFromVideoDevice(null, video, (res)=>{
             if(res && !scanCooldown){
@@ -203,7 +224,7 @@ async function startCamera(){
                 }
             }
         });
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Помилка камери:", err); }
 }
 
 torchBtn.onclick = async () => {
@@ -213,13 +234,11 @@ torchBtn.onclick = async () => {
     torchBtn.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
 };
 
-loadSaved();
-function loadSaved(){
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if(saved){ JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
-}
+// Завантаження збережених даних
+const saved = localStorage.getItem(STORAGE_KEY);
+if(saved){ JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
+
 startCamera();
 </script>
 </body>
 </html>
-
