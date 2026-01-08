@@ -3,121 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <title>СКАНЕР 412</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#f5f5f5">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
     <script src="https://unpkg.com/@zxing/library@latest"></script>
 
     <style>
-        * { 
-            -webkit-touch-callout: none; 
-            -webkit-user-select: none; 
-            user-select: none; 
-            box-sizing: border-box; 
-        }
-        
-        html, body {
-            height: 100%; margin: 0; padding: 0;
-            overflow: hidden; overscroll-behavior: none;
+        * { box-sizing: border-box; user-select: none; }
+        html, body { margin:0; padding:0; overflow:hidden; height:100%; font-family: -apple-system, Inter, sans-serif; background:#f8f9fa; }
+
+        h2{ text-align:center; margin:10px 0; font-weight:700; }
+
+        video{
+            width:100%;
+            max-width:600px;
+            height:22vh;
+            border-radius:12px;
+            background:#000;
+            margin:auto;
+            display:block;
+            object-fit:cover;
         }
 
-        body {
-            font-family: 'Inter', -apple-system, sans-serif; 
-            padding: 15px; 
-            background: #f8f9fa;
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            touch-action: none; 
+        .manual-input-group{
+            max-width:600px; margin:auto; display:flex; gap:8px; padding:10px 12px 0;
+        }
+        #manualInput{
+            flex:1; font-size:16px; padding:12px; border-radius:10px; border:1px solid #ccc; user-select:text;
+        }
+        #addBtn{
+            padding:0 18px; border-radius:10px; border:none; background:#4caf50; color:white; font-size:20px;
         }
 
-        h2 { 
-            margin: 5px 0 10px 0; 
-            font-weight: 700; 
-            letter-spacing: -0.03em; 
-            color: #1a1a1a;
+        #counter{
+            text-align:center; margin:6px 0; font-size:14px; font-weight:600;
         }
 
-        video {
-            width: 100%; 
-            max-width: 600px; 
-            height: 25vh; 
-            border-radius: 12px;
-            margin-bottom: 12px; 
-            object-fit: cover; 
-            background: #000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        
-        .manual-input-group {
-            width: 100%; max-width: 600px; display: flex; gap: 8px; margin-bottom: 12px;
+        textarea{
+            width:100%; max-width:600px; height:160px; margin:auto; display:block; padding:12px;
+            border-radius:12px; border:1px solid #ced4da; font-size:16px; resize:none; background:white;
+            user-select:text; white-space:pre;
         }
 
-        #manualInput {
-            flex: 1; padding: 14px; font-size: 16px; border-radius: 10px;
-            border: 1.5px solid #dee2e6; -webkit-user-select: text; user-select: text;
-            background: #fff; font-family: 'Inter', sans-serif;
-            transition: border-color 0.2s;
-        }
-        #manualInput:focus { border-color: #4CAF50; outline: none; }
+        .controls{ max-width:600px; margin:8px auto; display:flex; flex-direction:column; gap:8px; padding:0 12px; }
 
-        #addBtn {
-            width: auto; padding: 0 22px; background: #4CAF50; color: white; border: none; 
-            font-size: 20px; border-radius: 10px; cursor: pointer;
-            transition: background 0.2s;
-        }
-        #addBtn:active { background: #3d8b40; }
+        .row{ display:flex; gap:8px; }
 
-        #counter { 
-            font-weight: 600; 
-            margin-bottom: 8px; 
-            color: #495057;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+        button{ padding:14px; border-radius:12px; border:1px solid #ced4da; font-weight:600; background:white; }
 
-        textarea {
-            width: 100%; max-width: 600px; height: 160px;
-            font-size: 16px; margin-bottom: 12px; white-space: pre;
-            border: 1.5px solid #dee2e6; border-radius: 12px; padding: 12px; resize: none;
-            -webkit-user-select: text; user-select: text; touch-action: pan-y; 
-            background: #fff; font-family: 'Inter', sans-serif;
-            line-height: 1.5;
-        }
+        #torchBtn{ display:none; background:#fff3cd; border-color:#ffeeba; color:#856404; }
+        #undoBtn{ background:#e9ecef; }
+        #copyBtn{ background:#e7f3ff; border-color:#cfe2ff; color:#0056b3; }
+        .clearBtn{ background:#fff5f5; border-color:#fad2cf; color:#d93025; }
 
-        .controls { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 10px; }
-
-        button {
-            padding: 16px; width: 100%; font-size: 16px; font-weight: 600; cursor: pointer;
-            border-radius: 12px; border: 1px solid #dee2e6; background: #fff;
-            font-family: 'Inter', sans-serif;
-            touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-            transition: all 0.2s;
-        }
-
-        #torchBtn { display: none; background: #fff3cd; border-color: #ffeeba; color: #856404; }
-
-        /* Модальне вікно */
-        #modalOverlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: center;
-            backdrop-filter: blur(2px);
-        }
-        .modal-content {
-            background: white; padding: 24px; border-radius: 16px; width: 85%; max-width: 400px;
-            text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-        .modal-btns { display: flex; gap: 10px; margin-top: 24px; }
-        .btn-confirm { background: #ff4d4d; color: white; border: none; }
-        .btn-cancel { background: #f1f3f5; border: none; color: #495057; }
     </style>
 </head>
 <body>
@@ -127,208 +64,140 @@
 <video id="video"></video>
 
 <div class="manual-input-group">
-    <input type="tel" id="manualInput" placeholder="Ввести вручну..." autocomplete="off" inputmode="numeric" pattern="[0-9]*">
-    <button id="addBtn" onclick="addManualCode()">➕</button>
+    <input id="manualInput" type="tel" placeholder="Ввести вручну...">
+    <button id="addBtn">➕</button>
 </div>
 
 <div id="counter">Всього відскановано: 0</div>
+
 <textarea id="result" readonly placeholder="Список порожній..."></textarea>
 
 <div class="controls">
-    <div style="display:flex; gap:8px; margin-top:10px;">
-  <button id="torchBtn" style="flex:1">🔦 Ліхтарик</button>
-  <button id="undoBtn" style="flex:1">↩ Скасувати</button>
+    <div class="row">
+        <button id="torchBtn">🔦 Ліхтарик</button>
+        <button id="undoBtn">↩ Скасувати</button>
     </div>
-    <button onclick="copyData(event)" id="copyBtn" style="background: #e7f3ff; color: #0056b3; border-color: #cfe2ff;">📋 Скопіювати все</button>
-    <button onclick="showClearModal()" style="color: #d93025; background: #fff5f5; border-color: #fad2cf;">🗑 Очистити все</button>
-</div>
-
-<div id="modalOverlay">
-    <div class="modal-content">
-        <h3 style="margin: 0 0 10px 0; font-weight: 700;">Видалити все?</h3>
-        <div class="modal-btns">
-            <button class="btn-cancel" onclick="closeModal()">Скасувати</button>
-            <button class="btn-confirm" onclick="confirmClear()">Так, видалити</button>
-        </div>
-    </div>
+    <button id="copyBtn">📋 Скопіювати все</button>
+    <button class="clearBtn" id="clearAllBtn">🗑 Очистити все</button>
 </div>
 
 <script>
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
-    }
+const STORAGE_KEY = "scanner412_codes";
+const codeReader = new ZXing.BrowserBarcodeReader();
+const video = document.getElementById("video");
+const manualInput = document.getElementById("manualInput");
+const resultField = document.getElementById("result");
+const counter = document.getElementById("counter");
+const torchBtn = document.getElementById("torchBtn");
+let videoStream = null;
+let isTorchOn = false;
+let scanCooldown = false;
 
-    const manualInput = document.getElementById('manualInput');
-    const modalOverlay = document.getElementById('modalOverlay');
-    
-    manualInput.addEventListener('blur', () => {
-        setTimeout(() => { window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }); }, 150);
+const scannedCodes = new Set();
+
+function loadSaved(){
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if(saved){
+        JSON.parse(saved).forEach(v=>scannedCodes.add(v));
+        updateUI();
+    }
+}
+
+function save(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
+}
+
+function updateUI(){
+    resultField.value = Array.from(scannedCodes).join("\n");
+    counter.textContent = `Всього відскановано: ${scannedCodes.size}`;
+    save();
+}
+
+function vibrate(){ if("vibrate" in navigator) navigator.vibrate(60); }
+
+function process(code){
+    code = code.trim();
+    if(!code || scannedCodes.has(code)) return false;
+    scannedCodes.add(code);
+    updateUI();
+    vibrate();
+    return true;
+}
+
+document.getElementById("addBtn").onclick = ()=>{
+    if(process(manualInput.value)){
+        manualInput.value="";
+    } else if(manualInput.value.trim()!==""){
+        alert("Вже є!");
+    }
+};
+
+manualInput.onkeypress = e=>{
+    if(e.key==="Enter") document.getElementById("addBtn").click();
+};
+
+document.getElementById("undoBtn").onclick = ()=>{
+    if(scannedCodes.size===0) return;
+    const arr = Array.from(scannedCodes);
+    arr.pop();
+    scannedCodes.clear();
+    arr.forEach(v=>scannedCodes.add(v));
+    updateUI();
+    vibrate();
+};
+
+document.getElementById("copyBtn").onclick = ()=>{
+    if(!resultField.value) return;
+    navigator.clipboard.writeText(resultField.value);
+    vibrate();
+};
+
+document.getElementById("clearAllBtn").onclick = ()=>{
+    scannedCodes.clear();
+    updateUI();
+};
+
+async function toggleTorch(){
+    try{
+        const track = videoStream.getVideoTracks()[0];
+        isTorchOn = !isTorchOn;
+        await track.applyConstraints({ advanced:[{ torch:isTorchOn }] });
+        torchBtn.textContent = isTorchOn? "🔦 Вимкнути" : "🔦 Ліхтарик";
+    }catch(e){}
+}
+
+torchBtn.onclick = toggleTorch;
+
+function checkTorch(){
+    try{
+        const track = videoStream.getVideoTracks()[0];
+        const caps = track.getCapabilities();
+        if(caps && caps.torch) torchBtn.style.display="block";
+    }catch(e){}
+}
+
+async function startCamera(){
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video:{ facingMode:"environment" },
+        audio:false
     });
+    video.srcObject = stream;
+    videoStream = stream;
+    video.play();
+    setTimeout(checkTorch,700);
 
-    document.addEventListener('touchmove', e => { if (e.scale !== 1) e.preventDefault(); }, { passive: false });
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', e => {
-        let now = Date.now();
-        if (now - lastTouchEnd <= 300) e.preventDefault();
-        lastTouchEnd = now;
-    }, false);
-
-    const STORAGE_KEY = 'scanner412_codes';
-    const codeReader = new ZXing.BrowserBarcodeReader();
-    const videoElement = document.getElementById('video');
-    const resultField = document.getElementById('result');
-    const counter = document.getElementById('counter');
-    const torchBtn = document.getElementById('torchBtn');
-
-    const scannedCodes = new Set();
-    let scanTimeout = false;
-    let videoStream = null;
-    let isTorchOn = false;
-
-    function scrollToBottom() { resultField.scrollTop = resultField.scrollHeight; }
-
-    function updateDisplay() {
-        resultField.value = Array.from(scannedCodes).join('\n');
-        counter.textContent = `Всього відскановано: ${scannedCodes.size}`;
-        scrollToBottom();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
-    }
-
-    const savedData = localStorage.getItem(STORAGE_KEY);
-    if (savedData) {
-        try {
-            JSON.parse(savedData).forEach(code => scannedCodes.add(code));
-            updateDisplay();
-        } catch(e) {}
-    }
-
-    function processCode(code) {
-        code = code.trim();
-        if (!code || scannedCodes.has(code)) return false;
-        scannedCodes.add(code);
-        updateDisplay();
-        vibrateDevice(); // Тепер тут вібрація замість playBeep()
-        return true;
-    }
-
-    function addManualCode() {
-        if (processCode(manualInput.value)) {
-            manualInput.value = '';
-            manualInput.blur();
-        } else if (manualInput.value.trim() !== "") {
-            if ("vibrate" in navigator) navigator.vibrate([50, 50, 50]); // Подвійна вібрація на помилку
-            alert("Цей номер вже додано");
-        }
-    }
-
-    manualInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addManualCode(); });
-
-    codeReader.decodeFromVideoDevice(null, videoElement, (result, err) => {
-        if (!videoStream && videoElement.srcObject) {
-            videoStream = videoElement.srcObject;
-            setTimeout(checkTorchSupport, 1000);
-        }
-        if (result && !scanTimeout) {
-            if (processCode(result.text)) {
-                scanTimeout = true;
-                setTimeout(() => scanTimeout = false, 1500);
+    codeReader.decodeFromVideoDevice(null, video, (res)=>{
+        if(res && !scanCooldown){
+            if(process(res.text)){
+                scanCooldown=true;
+                setTimeout(()=>scanCooldown=false,1200);
             }
         }
     });
-
-    async function checkTorchSupport() {
-        try {
-            const track = videoStream.getVideoTracks()[0];
-            const capabilities = track.getCapabilities();
-            if (capabilities && capabilities.torch) torchBtn.style.display = 'block';
-        } catch (e) {}
-    }
-
-    async function toggleTorch() {
-        try {
-            const track = videoStream.getVideoTracks()[0];
-            isTorchOn = !isTorchOn;
-            await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
-            torchBtn.innerText = isTorchOn ? "🔦 Ліхтарик: УВІМК" : "🔦 Ліхтарик: ВИМК";
-            torchBtn.style.background = isTorchOn ? "#ffc107" : "#fff3cd";
-        } catch (e) { alert("Помилка ліхтарика"); }
-    }
-
-    function vibrateDevice() {
-        if ("vibrate" in navigator) {
-            navigator.vibrate(100); // Вібрувати 100мс
-        }
-    }
-
-    function copyData(event) {
-        const btn = event.currentTarget; // Отримуємо саме кнопку, на яку натиснули
-        if (!resultField.value) return;
-
-        navigator.clipboard.writeText(resultField.value).then(() => {
-            const originalText = "📋 Скопіювати все";
-            const originalBg = "#e7f3ff";
-            const originalColor = "#0056b3";
-            const originalBorder = "#cfe2ff";
-
-            // Змінюємо на "успішний" стан
-            btn.innerText = "✅ Скопійовано!";
-            btn.style.background = "#d4edda";
-            btn.style.color = "#155724";
-            btn.style.borderColor = "#c3e6cb";
-
-            setTimeout(() => {
-                // Повертаємо вихідний стан
-                btn.innerText = originalText;
-                btn.style.background = originalBg;
-                btn.style.color = originalColor;
-                btn.style.borderColor = originalBorder;
-            }, 2000);
-        });
-    }
-
-    <script>
-...
-function undoLast() {
-    if (scannedCodes.size === 0) return;
-
-    // Перетворюємо Set у масив
-    const arr = Array.from(scannedCodes);
-
-    // Видаляємо останній елемент
-    const last = arr.pop();
-
-    // Перезаписуємо набір
-    scannedCodes.clear();
-    arr.forEach(v => scannedCodes.add(v));
-
-    updateDisplay();
-
-    // Невеликий візуальний фідбек
-    playBeepUndo();
 }
 
-function playBeepUndo() {
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.value = 400; // трохи нижчий тон
-        gain.gain.value = 0.07;
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); setTimeout(() => { osc.stop(); audioCtx.close(); }, 90);
-    } catch(e){}
-}
-
-    function showClearModal() { modalOverlay.style.display = 'flex'; }
-    function closeModal() { modalOverlay.style.display = 'none'; }
-    function confirmClear() {
-        scannedCodes.clear();
-        updateDisplay();
-        localStorage.removeItem(STORAGE_KEY);
-        closeModal();
-    }
+loadSaved();
+startCamera().catch(console.error);
 </script>
 </body>
 </html>
-
-
