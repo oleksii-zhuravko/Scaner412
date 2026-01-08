@@ -8,52 +8,63 @@
     <script src="https://unpkg.com/@zxing/library@latest"></script>
 
     <style>
-        * { box-sizing: border-box; user-select: none; }
-        html, body { margin:0; padding:0; overflow:hidden; height:100%; font-family: -apple-system, Inter, sans-serif; background:#f8f9fa; }
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        html, body { margin:0; padding:0; overflow:hidden; height:100%; font-family: -apple-system, system-ui, sans-serif; background:#f8f9fa; }
 
-        h2{ text-align:center; margin:10px 0; font-weight:700; }
+        h2 { text-align:center; margin:10px 0; font-weight:700; color: #1a1a1a; }
 
-        video{
-            width:100%;
-            max-width:600px;
-            height:22vh;
-            border-radius:12px;
+        video {
+            width: 100%;
+            max-width: 600px;
+            height: 22vh;
+            border-radius: 12px;
             background:#000;
             margin:auto;
             display:block;
             object-fit:cover;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
-        .manual-input-group{
+        .manual-input-group {
             max-width:600px; margin:auto; display:flex; gap:8px; padding:10px 12px 0;
         }
-        #manualInput{
+        #manualInput {
             flex:1; font-size:16px; padding:12px; border-radius:10px; border:1px solid #ccc; user-select:text;
         }
-        #addBtn{
-            padding:0 18px; border-radius:10px; border:none; background:#4caf50; color:white; font-size:20px;
+        #addBtn {
+            padding:0 18px; border-radius:10px; border:none; background:#4caf50; color:white; font-size:20px; cursor: pointer;
         }
 
-        #counter{
-            text-align:center; margin:6px 0; font-size:14px; font-weight:600;
+        #counter {
+            text-align:center; margin:6px 0; font-size:14px; font-weight:600; color: #495057;
         }
 
-        textarea{
-            width:100%; max-width:600px; height:160px; margin:auto; display:block; padding:12px;
+        textarea {
+            width: calc(100% - 24px); max-width:600px; height: 160px; margin:auto; display:block; padding:12px;
             border-radius:12px; border:1px solid #ced4da; font-size:16px; resize:none; background:white;
-            user-select:text; white-space:pre;
+            user-select:text; white-space:pre; font-family: monospace;
         }
 
-        .controls{ max-width:600px; margin:8px auto; display:flex; flex-direction:column; gap:8px; padding:0 12px; }
+        .controls { max-width:600px; margin:8px auto; display:flex; flex-direction:column; gap:8px; padding:0 12px; }
 
-        .row{ display:flex; gap:8px; }
+        /* Виправлений рядок кнопок */
+        .row { display:flex; gap:8px; width: 100%; }
+        
+        button { 
+            padding:14px; border-radius:12px; border:1px solid #ced4da; font-weight:600; 
+            background:white; cursor: pointer; transition: opacity 0.2s;
+        }
+        button:active { opacity: 0.7; }
 
-        button{ padding:14px; border-radius:12px; border:1px solid #ced4da; font-weight:600; background:white; }
+        /* Кнопки в рядку розтягуються однаково */
+        #torchBtn, #undoBtn { flex: 1; }
 
-        #torchBtn{ display:none; background:#fff3cd; border-color:#ffeeba; color:#856404; }
-        #undoBtn{ background:#e9ecef; }
-        #copyBtn{ background:#e7f3ff; border-color:#cfe2ff; color:#0056b3; }
-        .clearBtn{ background:#fff5f5; border-color:#fad2cf; color:#d93025; }
+        /* Важливо: використовуємо flex замість block для ліхтарика */
+        #torchBtn { display:none; background:#fff3cd; border-color:#ffeeba; color:#856404; }
+        
+        #undoBtn { background:#e9ecef; }
+        #copyBtn { background:#e7f3ff; border-color:#cfe2ff; color:#0056b3; }
+        .clearBtn { background:#fff5f5; border-color:#fad2cf; color:#d93025; }
 
     </style>
 </head>
@@ -63,13 +74,12 @@
 
 <video id="video"></video>
 
-<!-- 🔽 Audio beep -->
 <audio id="beep" preload="auto">
-  <source src="data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEA..." type="audio/wav">
+  <source src="https://raw.githubusercontent.com/renzofiorella/barcode-scanner-pwa/master/src/assets/beep.mp3" type="audio/mpeg">
 </audio>
 
 <div class="manual-input-group">
-    <input id="manualInput" type="tel" placeholder="Ввести вручну...">
+    <input id="manualInput" type="tel" placeholder="Ввести вручну..." inputmode="numeric">
     <button id="addBtn">➕</button>
 </div>
 
@@ -101,15 +111,14 @@ let scanCooldown = false;
 const scannedCodes = new Set();
 
 function beep(){
-    const a=document.getElementById("beep");
-    a.currentTime=0;
-    a.play();
+    const a = document.getElementById("beep");
+    if(a) { a.currentTime = 0; a.play().catch(()=>{}); }
 }
 
 function loadSaved(){
     const saved = localStorage.getItem(STORAGE_KEY);
     if(saved){
-        JSON.parse(saved).forEach(v=>scannedCodes.add(v));
+        JSON.parse(saved).forEach(v => scannedCodes.add(v));
         updateUI();
     }
 }
@@ -121,6 +130,7 @@ function save(){
 function updateUI(){
     resultField.value = Array.from(scannedCodes).join("\n");
     counter.textContent = `Всього відскановано: ${scannedCodes.size}`;
+    resultField.scrollTop = resultField.scrollHeight;
     save();
 }
 
@@ -132,7 +142,7 @@ function process(code){
     scannedCodes.add(code);
     updateUI();
     vibrate();
-    beep();  // 🔔 Додано
+    beep();
     return true;
 }
 
@@ -140,7 +150,7 @@ document.getElementById("addBtn").onclick = ()=>{
     if(process(manualInput.value)){
         manualInput.value="";
     } else if(manualInput.value.trim()!==""){
-        alert("Вже є!");
+        alert("Вже є або порожньо!");
     }
 };
 
@@ -149,24 +159,30 @@ manualInput.onkeypress = e=>{
 };
 
 document.getElementById("undoBtn").onclick = ()=>{
-    if(scannedCodes.size===0) return;
+    if(scannedCodes.size === 0) return;
     const arr = Array.from(scannedCodes);
     arr.pop();
     scannedCodes.clear();
-    arr.forEach(v=>scannedCodes.add(v));
+    arr.forEach(v => scannedCodes.add(v));
     updateUI();
     vibrate();
 };
 
-document.getElementById("copyBtn").onclick = ()=>{
+document.getElementById("copyBtn").onclick = function(){
     if(!resultField.value) return;
-    navigator.clipboard.writeText(resultField.value);
+    navigator.clipboard.writeText(resultField.value).then(() => {
+        const originalText = this.textContent;
+        this.textContent = "✅ Скопійовано!";
+        setTimeout(() => this.textContent = originalText, 1500);
+    });
     vibrate();
 };
 
 document.getElementById("clearAllBtn").onclick = ()=>{
-    scannedCodes.clear();
-    updateUI();
+    if(confirm("Очистити весь список?")) {
+        scannedCodes.clear();
+        updateUI();
+    }
 };
 
 async function toggleTorch(){
@@ -174,8 +190,8 @@ async function toggleTorch(){
         const track = videoStream.getVideoTracks()[0];
         isTorchOn = !isTorchOn;
         await track.applyConstraints({ advanced:[{ torch:isTorchOn }] });
-        torchBtn.textContent = isTorchOn? "🔦 Вимкнути" : "🔦 Ліхтарик";
-    }catch(e){}
+        torchBtn.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
+    }catch(e){ console.error(e); }
 }
 
 torchBtn.onclick = toggleTorch;
@@ -184,32 +200,40 @@ function checkTorch(){
     try{
         const track = videoStream.getVideoTracks()[0];
         const caps = track.getCapabilities();
-        if(caps && caps.torch) torchBtn.style.display="block";
+        if(caps && caps.torch) {
+            torchBtn.style.display = "flex"; // Використовуємо flex для вирівнювання
+            torchBtn.style.justifyContent = "center";
+            torchBtn.style.alignItems = "center";
+        }
     }catch(e){}
 }
 
 async function startCamera(){
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video:{ facingMode:"environment" },
-        audio:false
-    });
-    video.srcObject = stream;
-    videoStream = stream;
-    video.play();
-    setTimeout(checkTorch,700);
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video:{ facingMode:"environment" },
+            audio:false
+        });
+        video.srcObject = stream;
+        videoStream = stream;
+        video.play();
+        setTimeout(checkTorch, 1000);
 
-    codeReader.decodeFromVideoDevice(null, video, (res)=>{
-        if(res && !scanCooldown){
-            if(process(res.text)){
-                scanCooldown=true;
-                setTimeout(()=>scanCooldown=false,1200);
+        codeReader.decodeFromVideoDevice(null, video, (res)=>{
+            if(res && !scanCooldown){
+                if(process(res.text)){
+                    scanCooldown = true;
+                    setTimeout(() => scanCooldown = false, 1500);
+                }
             }
-        }
-    });
+        });
+    } catch (err) {
+        alert("Помилка камери: " + err);
+    }
 }
 
 loadSaved();
-startCamera().catch(console.error);
+startCamera();
 </script>
 </body>
 </html>
