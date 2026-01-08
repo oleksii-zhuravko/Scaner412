@@ -196,35 +196,37 @@ function confirmClear() {
     closeModal();
 }
 
-async function startCamera(){
+async function startCamera() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                facingMode: "environment",
-                advanced: [{ focusMode: "continuous" }] 
-            } 
-        });
+        // Спочатку просто запитуємо потік без складних налаштувань
+        const constraints = { 
+            video: { facingMode: "environment" } 
+        };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
         videoStream = stream;
-        video.play();
         
-        setTimeout(() => {
-            const track = stream.getVideoTracks()[0];
-            const caps = track.getCapabilities();
-            if(caps && caps.torch) {
-                torchBtn.style.display = "flex";
-            }
-        }, 1200);
+        // Чекаємо, поки відео почне грати
+        await video.play();
+        
+        // Тільки після успішного запуску перевіряємо ліхтарик
+        setTimeout(checkTorch, 1000);
 
-        codeReader.decodeFromVideoDevice(null, video, (res)=>{
-            if(res && !scanCooldown){
-                if(process(res.text)){
+        // Запускаємо сканування
+        codeReader.decodeFromVideoDevice(null, video, (res, err) => {
+            if (res && !scanCooldown) {
+                if (process(res.text)) {
                     scanCooldown = true;
                     setTimeout(() => scanCooldown = false, 1500);
                 }
             }
+            // Помилки ігноруємо, щоб не засмічувати консоль
         });
-    } catch (err) { console.error("Помилка камери:", err); }
+    } catch (err) {
+        console.error("Помилка доступу:", err);
+        alert("Будь ласка, дозвольте доступ до камери в налаштуваннях браузера");
+    }
 }
 
 torchBtn.onclick = async () => {
@@ -242,3 +244,4 @@ startCamera();
 </script>
 </body>
 </html>
+
