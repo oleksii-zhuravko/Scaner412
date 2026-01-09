@@ -14,11 +14,10 @@
 
         h2 { text-align:center; margin:10px 0; font-weight:700; color: #1a1a1a; font-size: 24px; }
 
-        /* Фіксована ширина відео як у текстового поля */
         #interactive.viewport {
             width: calc(100% - 24px); 
-            max-width: 600px; height: 22vh; 
-            margin: 10px auto; overflow: hidden; position: relative;
+            max-width: 600px; height: 20vh; 
+            margin: 5px auto; overflow: hidden; position: relative;
             background: #000; border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
@@ -31,20 +30,33 @@
         #manualInput { flex:1; font-size:18px; padding:15px; border-radius:12px; border:1px solid #ccc; user-select:text; }
         #addBtn { padding:0 25px; border-radius:12px; border:none; background:#4caf50; color:white; font-size:24px; cursor: pointer; }
 
-        #counter { text-align:center; margin:10px 0; font-size:16px; font-weight:700; color: #495057; }
+        #counter { text-align:center; margin:5px 0; font-size:16px; font-weight:700; color: #495057; }
 
-        textarea {
-            width: calc(100% - 24px); max-width:600px; height: 160px; margin:auto; display:block; padding:15px;
-            border-radius:12px; border:1px solid #ced4da; font-size:18px; resize:none; background:white;
-            user-select:text; white-space:pre; font-family: monospace;
+        /* Стилі для перемикача формату */
+        .format-controls {
+            max-width: 600px; margin: 0 auto 5px; padding: 0 12px;
+            display: flex; justify-content: center;
+        }
+        .toggle-btn {
+            background: #e9ecef; border: 1px solid #ced4da; padding: 8px 15px;
+            border-radius: 20px; font-size: 14px; font-weight: 600; color: #495057;
+            cursor: pointer; transition: 0.2s;
+        }
+        .toggle-btn.active {
+            background: #007bff; color: white; border-color: #007bff;
         }
 
-        /* Великі кнопки */
+        textarea {
+            width: calc(100% - 24px); max-width:600px; height: 150px; margin:auto; display:block; padding:15px;
+            border-radius:12px; border:1px solid #ced4da; font-size:18px; resize:none; background:white;
+            user-select:text; white-space:pre-wrap; font-family: monospace; word-break: break-all;
+        }
+
         .controls { max-width:600px; margin:10px auto; display:flex; flex-direction:column; gap:10px; padding:0 12px; }
         .row { display:flex; gap:10px; width: 100%; }
         
         button { 
-            padding: 18px; border-radius: 14px; border: 1px solid #ced4da; 
+            padding: 16px; border-radius: 14px; border: 1px solid #ced4da; 
             font-weight: 700; font-size: 18px; background: white; 
             cursor: pointer; transition: transform 0.1s, opacity 0.2s;
         }
@@ -78,11 +90,15 @@
 </audio>
 
 <div class="manual-input-group">
-    <input id="manualInput" type="tel" placeholder="Ввести вручну..." inputmode="numeric">
+    <input id="manualInput" type="tel" placeholder="Вручну..." inputmode="numeric">
     <button id="addBtn">➕</button>
 </div>
 
-<div id="counter">Всього відскановано: 0</div>
+<div id="counter">Всього: 0</div>
+
+<div class="format-controls">
+    <div id="formatToggle" class="toggle-btn">Формат: Стовпчик (через Enter)</div>
+</div>
 
 <textarea id="result" readonly placeholder="Список порожній..."></textarea>
 
@@ -98,7 +114,7 @@
 <div id="modal">
     <div class="modal-box">
         <h3 style="margin-top:0">Очистити список?</h3>
-        <p style="color:#666">Всі дані будуть видалені безповоротно.</p>
+        <p style="color:#666">Дані будуть видалені.</p>
         <div class="row">
             <button onclick="closeModal()" style="flex:1">Назад</button>
             <button onclick="confirmClear()" style="flex:1; background:#ff4d4d; color:white; border:none">Видалити</button>
@@ -110,6 +126,7 @@
 const STORAGE_KEY = "scanner412_codes";
 const scannedCodes = new Set();
 let isTorchOn = false;
+let useCommaSeparator = false; // Стан перемикача
 
 let lastDetectedCode = null;
 let detectionCount = 0;
@@ -127,18 +144,12 @@ function startQuagga() {
                 height: { ideal: 720 }
             },
         },
-        locator: {
-            patchSize: "medium",
-            halfSample: true
-        },
-        decoder: {
-            readers: ["code_128_reader", "code_39_reader"]
-        }
+        locator: { patchSize: "medium", halfSample: true },
+        decoder: { readers: ["code_128_reader", "code_39_reader"] }
     }, function(err) {
         if (err) { console.error(err); return; }
         Quagga.start();
         
-        // Спеціально для Samsung: циклічна перевірка ліхтарика
         let attempts = 0;
         const checkTorchInterval = setInterval(() => {
             try {
@@ -150,23 +161,26 @@ function startQuagga() {
                         clearInterval(checkTorchInterval);
                     }
                 }
-            } catch (e) { console.log("Спроба отримати доступ до спалаху..."); }
+            } catch (e) {}
             attempts++;
             if (attempts > 15) clearInterval(checkTorchInterval);
         }, 500);
     });
 }
 
+// Обробка перемикача
+document.getElementById("formatToggle").onclick = function() {
+    useCommaSeparator = !useCommaSeparator;
+    this.classList.toggle("active", useCommaSeparator);
+    this.innerText = useCommaSeparator ? "Формат: Кома (123, 456)" : "Формат: Стовпчик (через Enter)";
+    updateUI();
+};
+
 Quagga.onDetected((data) => {
     const code = data.codeResult.code;
     if (code.length < 3 || code.length > 5) return;
-
-    if (code === lastDetectedCode) {
-        detectionCount++;
-    } else {
-        lastDetectedCode = code;
-        detectionCount = 0;
-    }
+    if (code === lastDetectedCode) { detectionCount++; } 
+    else { lastDetectedCode = code; detectionCount = 0; }
 
     if (detectionCount >= REQUIRED_CONFIRMATIONS) {
         process(code);
@@ -187,10 +201,13 @@ function process(code) {
 }
 
 function updateUI() {
-    document.getElementById("result").value = Array.from(scannedCodes).join("\n");
-    document.getElementById("counter").textContent = `Всього відскановано: ${scannedCodes.size}`;
+    const codesArray = Array.from(scannedCodes);
+    const separator = useCommaSeparator ? ", " : "\n";
+    
+    document.getElementById("result").value = codesArray.join(separator);
+    document.getElementById("counter").textContent = `Всього: ${scannedCodes.size}`;
     document.getElementById("result").scrollTop = document.getElementById("result").scrollHeight;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(codesArray));
 }
 
 document.getElementById("torchBtn").onclick = async function() {
@@ -201,9 +218,7 @@ document.getElementById("torchBtn").onclick = async function() {
             await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
             this.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
         }
-    } catch (e) {
-        console.error("Samsung помилка спалаху:", e);
-    }
+    } catch (e) {}
 };
 
 document.getElementById("addBtn").onclick = () => {
@@ -241,7 +256,6 @@ const saved = localStorage.getItem(STORAGE_KEY);
 if (saved) { JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
 
 startQuagga();
-
 document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 </script>
 </body>
