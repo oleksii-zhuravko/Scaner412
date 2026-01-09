@@ -14,7 +14,7 @@
 
         h2 { text-align:center; margin:10px 0; font-weight:700; color: #1a1a1a; font-size: 24px; }
 
-        /* Повернув розмір відео як було */
+        /* Фіксована ширина відео як у текстового поля */
         #interactive.viewport {
             width: calc(100% - 24px); 
             max-width: 600px; height: 22vh; 
@@ -39,7 +39,7 @@
             user-select:text; white-space:pre; font-family: monospace;
         }
 
-        /* Повернув великі кнопки */
+        /* Великі кнопки */
         .controls { max-width:600px; margin:10px auto; display:flex; flex-direction:column; gap:10px; padding:0 12px; }
         .row { display:flex; gap:10px; width: 100%; }
         
@@ -111,10 +111,9 @@ const STORAGE_KEY = "scanner412_codes";
 const scannedCodes = new Set();
 let isTorchOn = false;
 
-// Змінні для фільтрації помилок
 let lastDetectedCode = null;
 let detectionCount = 0;
-const REQUIRED_CONFIRMATIONS = 3; // Скільки разів поспіль треба побачити код
+const REQUIRED_CONFIRMATIONS = 3; 
 
 function startQuagga() {
     Quagga.init({
@@ -129,34 +128,39 @@ function startQuagga() {
             },
         },
         locator: {
-            patchSize: "medium", // Medium краще для коротких кодів, ніж Large
+            patchSize: "medium",
             halfSample: true
         },
         decoder: {
-            // Залишаємо тільки Code 128 та Code 39 для точності
             readers: ["code_128_reader", "code_39_reader"]
         }
     }, function(err) {
         if (err) { console.error(err); return; }
         Quagga.start();
         
-        setTimeout(() => {
-            const track = Quagga.CameraAccess.getActiveTrack();
-            if (track && track.getCapabilities) {
-                const caps = track.getCapabilities();
-                if (caps.torch) document.getElementById("torchBtn").style.display = "flex";
-            }
-        }, 1500);
+        // Спеціально для Samsung: циклічна перевірка ліхтарика
+        let attempts = 0;
+        const checkTorchInterval = setInterval(() => {
+            try {
+                const track = Quagga.CameraAccess.getActiveTrack();
+                if (track && track.getCapabilities) {
+                    const caps = track.getCapabilities();
+                    if (caps && caps.torch) {
+                        document.getElementById("torchBtn").style.display = "flex";
+                        clearInterval(checkTorchInterval);
+                    }
+                }
+            } catch (e) { console.log("Спроба отримати доступ до спалаху..."); }
+            attempts++;
+            if (attempts > 15) clearInterval(checkTorchInterval);
+        }, 500);
     });
 }
 
 Quagga.onDetected((data) => {
     const code = data.codeResult.code;
-
-    // 1. Фільтр довжини (ігноруємо все, що не в діапазоні 3-6 символів)
     if (code.length < 3 || code.length > 5) return;
 
-    // 2. Фільтр стабільності (код має повторитися кілька разів)
     if (code === lastDetectedCode) {
         detectionCount++;
     } else {
@@ -166,23 +170,19 @@ Quagga.onDetected((data) => {
 
     if (detectionCount >= REQUIRED_CONFIRMATIONS) {
         process(code);
-        detectionCount = 0; // Скидаємо після успіху
+        detectionCount = 0;
         lastDetectedCode = null;
     }
 });
 
 function process(code) {
     code = code.trim();
-    // Фінальна перевірка перед додаванням
     if (!code || scannedCodes.has(code)) return false;
-    
     scannedCodes.add(code);
     updateUI();
-    
     if ("vibrate" in navigator) navigator.vibrate(80);
     const audio = document.getElementById("beep");
     if (audio) { audio.currentTime = 0; audio.play().catch(()=>{}); }
-    
     return true;
 }
 
@@ -193,12 +193,17 @@ function updateUI() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(scannedCodes)));
 }
 
-// Решта кнопок (Ліхтарик, Копіювати, Очистити) залишаються без змін...
-document.getElementById("torchBtn").onclick = function() {
-    const track = Quagga.CameraAccess.getActiveTrack();
-    isTorchOn = !isTorchOn;
-    track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
-    this.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
+document.getElementById("torchBtn").onclick = async function() {
+    try {
+        const track = Quagga.CameraAccess.getActiveTrack();
+        if (track) {
+            isTorchOn = !isTorchOn;
+            await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
+            this.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
+        }
+    } catch (e) {
+        console.error("Samsung помилка спалаху:", e);
+    }
 };
 
 document.getElementById("addBtn").onclick = () => {
@@ -237,11 +242,7 @@ if (saved) { JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
 
 startQuagga();
 
-// Блокування зуму
 document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 </script>
 </body>
 </html>
-
-
-
