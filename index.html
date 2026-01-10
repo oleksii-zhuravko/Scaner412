@@ -2,11 +2,11 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>СКАНЕР 412 PRO</title>
+    <title>СКАНЕР 412</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <link rel="manifest" href="manifest.json">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script src="quagga.min.js"></script>
 
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -26,28 +26,29 @@
         }
         canvas.drawingBuffer { position: absolute; left: 0; top: 0; }
 
-        .manual-input-group { max-width:600px; margin:auto; display:flex; gap:10px; padding:10px 12px 0; }
+        .manual-input-group { max-width:600px; margin:auto; display:flex; gap:10px; padding:10px 12px 5px; }
         #manualInput { flex:1; font-size:18px; padding:15px; border-radius:12px; border:1px solid #ccc; user-select:text; }
         #addBtn { padding:0 25px; border-radius:12px; border:none; background:#4caf50; color:white; font-size:24px; cursor: pointer; }
 
-        #counter { text-align:center; margin:5px 0; font-size:16px; font-weight:700; color: #495057; }
-
-        /* Стилі для перемикача формату */
-        .format-controls {
-            max-width: 600px; margin: 0 auto 5px; padding: 0 12px;
-            display: flex; justify-content: center;
+        /* Новий статус-бар: лічильник і перемикач в один ряд */
+        .status-bar {
+            max-width: 600px; margin: 5px auto; padding: 0 12px;
+            display: flex; justify-content: space-between; align-items: center;
         }
+        
+        #counter { font-size: 16px; font-weight: 700; color: #495057; margin: 0; }
+
         .toggle-btn {
-            background: #e9ecef; border: 1px solid #ced4da; padding: 8px 15px;
-            border-radius: 20px; font-size: 14px; font-weight: 600; color: #495057;
-            cursor: pointer; transition: 0.2s;
+            background: #e9ecef; border: 1px solid #ced4da; padding: 6px 12px;
+            border-radius: 10px; font-size: 13px; font-weight: 600; color: #495057;
+            cursor: pointer; transition: 0.2s; min-width: 90px; text-align: center;
         }
         .toggle-btn.active {
             background: #007bff; color: white; border-color: #007bff;
         }
 
         textarea {
-            width: calc(100% - 24px); max-width:600px; height: 150px; margin:auto; display:block; padding:15px;
+            width: calc(100% - 24px); max-width:600px; height: 160px; margin:auto; display:block; padding:15px;
             border-radius:12px; border:1px solid #ced4da; font-size:18px; resize:none; background:white;
             user-select:text; white-space:pre-wrap; font-family: monospace; word-break: break-all;
         }
@@ -94,10 +95,9 @@
     <button id="addBtn">➕</button>
 </div>
 
-<div id="counter">Всього: 0</div>
-
-<div class="format-controls">
-    <div id="formatToggle" class="toggle-btn">Формат: Стовпчик (через Enter)</div>
+<div class="status-bar">
+    <div id="counter">Всього: 0</div>
+    <div id="formatToggle" class="toggle-btn">Стовпчик</div>
 </div>
 
 <textarea id="result" readonly placeholder="Список порожній..."></textarea>
@@ -126,7 +126,7 @@
 const STORAGE_KEY = "scanner412_codes";
 const scannedCodes = new Set();
 let isTorchOn = false;
-let useCommaSeparator = false; // Стан перемикача
+let useCommaSeparator = false;
 
 let lastDetectedCode = null;
 let detectionCount = 0;
@@ -168,11 +168,11 @@ function startQuagga() {
     });
 }
 
-// Обробка перемикача
+// Обробка перемикача формату
 document.getElementById("formatToggle").onclick = function() {
     useCommaSeparator = !useCommaSeparator;
     this.classList.toggle("active", useCommaSeparator);
-    this.innerText = useCommaSeparator ? "Формат: Кома (123, 456)" : "Формат: Стовпчик (через Enter)";
+    this.innerText = useCommaSeparator ? "Кома" : "Стовпчик";
     updateUI();
 };
 
@@ -254,6 +254,11 @@ function confirmClear() { scannedCodes.clear(); updateUI(); closeModal(); }
 
 const saved = localStorage.getItem(STORAGE_KEY);
 if (saved) { JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
+
+// Реєстрація Service Worker для Offline роботи
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
 
 startQuagga();
 document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
