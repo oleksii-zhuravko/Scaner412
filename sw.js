@@ -1,42 +1,39 @@
-const CACHE_NAME = 'scanner412-v3'; // Змінюйте версію (v3, v4...), щоб змусити телефон оновити файли
+const CACHE_NAME = 'scanner412-v4';
 
+// Список файлів для офлайн роботи
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './zxing.js',
-  './icon-192.png',
-  './icon-512.png',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'
+  './quagga.min.js',
+  './icon412.png',
+  // Кешуємо зовнішній звук, щоб він працював офлайн
+  'https://raw.githubusercontent.com/renzofiorella/barcode-scanner-pwa/master/src/assets/beep.mp3'
 ];
 
-// Установка: кешуємо всі ресурси
+// Установка: зберігаємо все у кеш
 self.addEventListener('install', (event) => {
-  // Змушуємо сервіс-воркер активуватися негайно, не чекаючи закриття вкладок
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Кешування ресурсів...');
       return cache.addAll(ASSETS);
     })
   );
 });
 
-// Активація: видаляємо старі версії кешу
+// Активація: чистимо старий кеш
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       );
     })
   );
-  // Негайно беремо під контроль усі відкриті сторінки
   self.clients.claim();
 });
 
-// Робота офлайн: стратегія Cache First (спочатку кеш, потім мережа)
+// Стратегія: Спочатку кеш, якщо немає — запит до мережі
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
