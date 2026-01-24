@@ -25,7 +25,7 @@
         
         .manual-input-group { max-width:600px; margin:auto; display:flex; gap:8px; padding:5px 12px; }
         #manualInput { flex:1; font-size:18px; padding:12px; border-radius:10px; border:1px solid #ccc; user-select:text; outline:none; }
-        #addBtn { padding:0 20px; border-radius:10px; border:none; background:#4caf50; color:white; font-size:20px; cursor: pointer; }
+        #addBtn { padding:0 20px; border-radius:10px; border:none; background:#4caf50; color:white; font-size:20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         .status-bar { max-width: 600px; margin: 2px auto; padding: 0 12px; display: flex; justify-content: space-between; align-items: center; }
         #counter { font-size: 15px; font-weight: 700; color: #495057; }
@@ -33,6 +33,7 @@
         .toggle-btn {
             background: #e9ecef; border: 1px solid #ced4da; padding: 6px 12px;
             border-radius: 8px; font-size: 12px; font-weight: 600; color: #495057;
+            display: flex; align-items: center; justify-content: center;
         }
         .toggle-btn.active { background: #007bff; color: white; border-color: #007bff; }
 
@@ -44,15 +45,30 @@
 
         .controls { max-width:600px; margin:5px auto; display:flex; flex-direction:column; gap:8px; padding:0 12px; }
         .row { display:flex; gap:8px; width: 100%; }
-        button { padding: 14px; border-radius: 12px; border: 1px solid #ced4da; font-weight: 700; font-size: 16px; background: white; cursor: pointer; }
+        
+        /* Виправлено центрування кнопок */
+        button { 
+            height: 54px; /* Фіксована висота для ідеального центрування */
+            padding: 0 10px; 
+            border-radius: 12px; 
+            border: 1px solid #ced4da; 
+            font-weight: 700; 
+            font-size: 16px; 
+            background: white; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            line-height: 1;
+        }
         
         #torchBtn { display:none; background:#fff3cd; flex: 1.2; }
         #reloadBtn { background:#e7f3ff; flex: 0.8; }
         #undoBtn { background:#f8f9fa; flex: 0.8; }
-        #copyBtn { background: #d4edda; color: #155724; border-color: #c3e6cb; }
-        .clearBtn { background:#fff5f5; color:#d93025; border-color:#fad2cf; }
+        #copyBtn { background: #d4edda; color: #155724; border-color: #c3e6cb; width: 100%; }
+        .clearBtn { background:#fff5f5; color:#d93025; border-color:#fad2cf; width: 100%; }
 
-        .credits { text-align: center; font-size: 10px; color: #adb5bd; margin-top: 10px; padding-bottom: 10px; }
+        .credits { text-align: center; font-size: 10px; color: #adb5bd; margin-top: 10px; padding-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -218,8 +234,17 @@ document.getElementById("copyBtn").onclick = function() {
     setTimeout(() => this.innerText = old, 1500);
 };
 
+// ВИПРАВЛЕНО: додано перезапуск камери після confirm
 document.getElementById("clearAllBtn").onclick = () => {
-    if(confirm("Очистити весь список?")) { scannedCodes.clear(); updateUI(); }
+    if(confirm("Очистити весь список?")) { 
+        scannedCodes.clear(); 
+        updateUI(); 
+    }
+    // Перезапуск Quagga для Android
+    setTimeout(() => {
+        Quagga.stop();
+        startQuagga();
+    }, 100);
 };
 
 const saved = localStorage.getItem(STORAGE_KEY);
