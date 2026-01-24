@@ -7,61 +7,46 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Сканер 412">
     <link rel="apple-touch-icon" href="icon412.png">
-
     <link rel="manifest" href="manifest.json">
     <script src="quagga.min.js"></script>
 
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
         html, body { margin:0; padding:0; overflow:hidden; height:100%; font-family: -apple-system, system-ui, sans-serif; background:#f8f9fa; }
-        
-        h2 { text-align:center; margin:10px 0; font-weight:700; color: #1a1a1a; font-size: 24px; }
+        h2 { text-align:center; margin:10px 0; font-weight:700; color: #1a1a1a; font-size: 22px; }
 
         #interactive.viewport {
-            width: calc(100% - 24px); max-width: 600px; height: 20vh; 
+            width: calc(100% - 24px); max-width: 600px; height: 25vh; 
             margin: 5px auto; overflow: hidden; position: relative;
             background: #000; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
         #interactive.viewport > video, #interactive.viewport > canvas { width: 100%; height: 100%; object-fit: cover; }
-        canvas.drawingBuffer { position: absolute; left: 0; top: 0; }
-
-        .manual-input-group { max-width:600px; margin:auto; display:flex; gap:10px; padding:10px 12px 5px; }
-        #manualInput { flex:1; font-size:18px; padding:15px; border-radius:12px; border:1px solid #ccc; user-select:text; }
-        #addBtn { padding:0 25px; border-radius:12px; border:none; background:#4caf50; color:white; font-size:24px; cursor: pointer; }
-
-        .status-bar {
-            max-width: 600px; margin: 5px auto; padding: 0 12px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
+        
+        .status-bar { max-width: 600px; margin: 5px auto; padding: 0 12px; display: flex; justify-content: space-between; align-items: center; }
         #counter { font-size: 16px; font-weight: 700; color: #495057; }
+        
         .toggle-btn {
-            background: #e9ecef; border: 1px solid #ced4da; padding: 6px 12px;
+            background: #e9ecef; border: 1px solid #ced4da; padding: 8px 15px;
             border-radius: 10px; font-size: 13px; font-weight: 600; color: #495057;
-            cursor: pointer; transition: 0.2s; min-width: 90px; text-align: center;
         }
         .toggle-btn.active { background: #007bff; color: white; border-color: #007bff; }
 
         textarea {
-            width: calc(100% - 24px); max-width:600px; height: 160px; margin:auto; display:block; padding:15px;
+            width: calc(100% - 24px); max-width:600px; height: 140px; margin:auto; display:block; padding:15px;
             border-radius:12px; border:1px solid #ced4da; font-size:18px; resize:none; background:white;
-            user-select:text; white-space:pre-wrap; font-family: monospace; word-break: break-all;
+            user-select:text; font-family: monospace;
         }
 
-        .controls { max-width:600px; margin:10px auto; display:flex; flex-direction:column; gap:10px; padding:0 12px; }
-        .row { display:flex; gap:10px; width: 100%; }
-        button { padding: 16px; border-radius: 14px; border: 1px solid #ced4da; font-weight: 700; font-size: 18px; background: white; cursor: pointer; }
-        button:active { transform: scale(0.98); opacity: 0.8; }
+        .controls { max-width:600px; margin:10px auto; display:flex; flex-direction:column; gap:8px; padding:0 12px; }
+        .row { display:flex; gap:8px; width: 100%; }
+        button { padding: 14px; border-radius: 12px; border: 1px solid #ced4da; font-weight: 700; font-size: 16px; background: white; cursor: pointer; }
         
-        #torchBtn, #undoBtn { flex: 1; }
-        #torchBtn { display:none; background:#fff3cd; border-color:#ffeeba; color:#856404; justify-content: center; align-items: center; }
-        #undoBtn { background:#e9ecef; }
-        #copyBtn { background:#e7f3ff; border-color:#cfe2ff; color:#0056b3; }
-        .clearBtn { background:#fff5f5; border-color:#fad2cf; color:#d93025; }
-
-        #modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center; backdrop-filter: blur(4px); }
-        .modal-box { background:white; padding:25px; border-radius:20px; text-align:center; width:85%; max-width:400px; }
+        #torchBtn { display:none; background:#fff3cd; flex: 1; }
+        #reloadBtn { background:#e7f3ff; flex: 1; }
+        #undoBtn { background:#f8f9fa; flex: 1; }
+        #copyBtn { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .clearBtn { background:#fff5f5; color:#d93025; border-color:#fad2cf; }
     </style>
 </head>
 <body>
@@ -74,11 +59,6 @@
   <source src="beep.mp3" type="audio/mpeg">
 </audio>
 
-<div class="manual-input-group">
-    <input id="manualInput" type="tel" placeholder="Вручну..." inputmode="numeric">
-    <button id="addBtn">➕</button>
-</div>
-
 <div class="status-bar">
     <div id="counter">Всього: 0</div>
     <div id="formatToggle" class="toggle-btn">Стовпчик</div>
@@ -89,20 +69,11 @@
 <div class="controls">
     <div class="row">
         <button id="torchBtn">🔦 Ліхтарик</button>
-        <button id="undoBtn">↩ Скасувати</button>
+        <button id="reloadBtn">🔄 Камера</button>
+        <button id="undoBtn">↩ Назад</button>
     </div>
     <button id="copyBtn">📋 Скопіювати все</button>
-    <button class="clearBtn" id="clearAllBtn">🗑 Очистити все</button>
-</div>
-
-<div id="modal">
-    <div class="modal-box">
-        <h3 style="margin-top:0">Очистити список?</h3>
-        <div class="row">
-            <button onclick="closeModal()" style="flex:1">Назад</button>
-            <button onclick="confirmClear()" style="flex:1; background:#ff4d4d; color:white; border:none">Видалити</button>
-        </div>
-    </div>
+    <button class="clearBtn" id="clearAllBtn">🗑 Очистити</button>
 </div>
 
 <script>
@@ -110,40 +81,65 @@ const STORAGE_KEY = "scanner412_codes";
 const scannedCodes = new Set();
 let isTorchOn = false;
 let useCommaSeparator = false;
-
 let lastDetectedCode = null;
 let detectionCount = 0;
-const REQUIRED_CONFIRMATIONS = 3; 
 
 function startQuagga() {
     Quagga.init({
         inputStream: {
             name: "Live", type: "LiveStream", target: document.querySelector('#interactive'),
-            constraints: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+            constraints: { 
+                facingMode: "environment", 
+                width: { min: 640, ideal: 1280 }, 
+                height: { min: 480, ideal: 720 },
+                aspectRatio: { ideal: 1.777 }
+            },
         },
         locator: { patchSize: "medium", halfSample: true },
         decoder: { readers: ["code_128_reader", "code_39_reader"] }
     }, function(err) {
         if (err) return;
         Quagga.start();
-
-        // Покращена перевірка ліхтарика (20 спроб)
-        let attempts = 0;
-        const checkTorchInterval = setInterval(() => {
-            try {
-                const track = Quagga.CameraAccess.getActiveTrack();
-                if (track) {
-                    const caps = track.getCapabilities ? track.getCapabilities() : {};
-                    if (caps.torch) {
-                        document.getElementById("torchBtn").style.display = "flex";
-                        clearInterval(checkTorchInterval);
-                    }
-                }
-            } catch (e) {}
-            if (++attempts > 20) clearInterval(checkTorchInterval);
-        }, 500);
+        checkTorchSupport();
     });
 }
+
+function checkTorchSupport() {
+    let attempts = 0;
+    const interval = setInterval(() => {
+        const track = Quagga.CameraAccess.getActiveTrack();
+        if (track) {
+            const caps = track.getCapabilities ? track.getCapabilities() : {};
+            if (caps.torch) {
+                document.getElementById("torchBtn").style.display = "flex";
+                clearInterval(interval);
+            }
+        }
+        if (++attempts > 15) clearInterval(interval);
+    }, 500);
+}
+
+document.getElementById("reloadBtn").onclick = () => {
+    isTorchOn = false;
+    document.getElementById("torchBtn").innerHTML = "🔦 Ліхтарик";
+    document.getElementById("torchBtn").style.background = "#fff3cd";
+    Quagga.stop();
+    startQuagga();
+};
+
+document.getElementById("torchBtn").onclick = async function() {
+    const track = Quagga.CameraAccess.getActiveTrack();
+    if (track) {
+        try {
+            isTorchOn = !isTorchOn;
+            await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
+            this.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
+            this.style.background = isTorchOn ? "#ffeb3b" : "#fff3cd";
+        } catch (e) {
+            console.error(e);
+        }
+    }
+};
 
 document.getElementById("formatToggle").onclick = function() {
     useCommaSeparator = !useCommaSeparator;
@@ -154,55 +150,28 @@ document.getElementById("formatToggle").onclick = function() {
 
 Quagga.onDetected((data) => {
     const code = data.codeResult.code;
-    if (code.length < 3 || code.length > 5) return;
+    if (code.length < 3 || code.length > 7) return;
     if (code === lastDetectedCode) { detectionCount++; } 
     else { lastDetectedCode = code; detectionCount = 0; }
-    if (detectionCount >= REQUIRED_CONFIRMATIONS) {
-        process(code);
+    
+    if (detectionCount >= 3) {
+        if (!scannedCodes.has(code.trim())) {
+            scannedCodes.add(code.trim());
+            updateUI();
+            if ("vibrate" in navigator) navigator.vibrate(80);
+            document.getElementById("beep").play().catch(()=>{});
+        }
         detectionCount = 0;
         lastDetectedCode = null;
     }
 });
 
-function process(code) {
-    code = code.trim();
-    if (!code || scannedCodes.has(code)) return false;
-    scannedCodes.add(code);
-    updateUI();
-    if ("vibrate" in navigator) navigator.vibrate(80);
-    const audio = document.getElementById("beep");
-    if (audio) { audio.currentTime = 0; audio.play().catch(()=>{}); }
-    return true;
-}
-
 function updateUI() {
-    const codesArray = Array.from(scannedCodes);
-    const separator = useCommaSeparator ? ", " : "\n";
-    document.getElementById("result").value = codesArray.join(separator);
+    const arr = Array.from(scannedCodes);
+    document.getElementById("result").value = arr.join(useCommaSeparator ? ", " : "\n");
     document.getElementById("counter").textContent = `Всього: ${scannedCodes.size}`;
-    document.getElementById("result").scrollTop = document.getElementById("result").scrollHeight;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(codesArray));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
 }
-
-document.getElementById("torchBtn").onclick = async function() {
-    try {
-        const track = Quagga.CameraAccess.getActiveTrack();
-        if (track) {
-            isTorchOn = !isTorchOn;
-            await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
-            this.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
-            this.style.background = isTorchOn ? "#ffeb3b" : "#fff3cd";
-        }
-    } catch (e) {}
-};
-
-document.getElementById("addBtn").onclick = () => {
-    const val = document.getElementById("manualInput").value.trim();
-    if (process(val)) {
-        document.getElementById("manualInput").value = "";
-        document.getElementById("manualInput").blur();
-    }
-};
 
 document.getElementById("undoBtn").onclick = () => {
     const arr = Array.from(scannedCodes);
@@ -218,24 +187,21 @@ document.getElementById("copyBtn").onclick = function() {
     const text = document.getElementById("result").value;
     if (!text) return;
     navigator.clipboard.writeText(text);
-    const oldText = this.innerText;
+    const old = this.innerText;
     this.innerText = "✅ Скопійовано!";
-    setTimeout(() => this.innerText = oldText, 1500);
+    setTimeout(() => this.innerText = old, 1500);
 };
 
-document.getElementById("clearAllBtn").onclick = () => document.getElementById("modal").style.display = "flex";
-function closeModal() { document.getElementById("modal").style.display = "none"; }
-function confirmClear() { scannedCodes.clear(); updateUI(); closeModal(); }
+document.getElementById("clearAllBtn").onclick = () => {
+    if(confirm("Очистити список?")) { scannedCodes.clear(); updateUI(); }
+};
 
 const saved = localStorage.getItem(STORAGE_KEY);
 if (saved) { JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
 
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Error:", err));
-}
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
 
 startQuagga();
-document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 </script>
 </body>
 </html>
