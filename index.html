@@ -2,11 +2,12 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>СКАНЕР 412</title>
+    <title>СКАНЕР 412 PRO</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Сканер 412">
     <link rel="apple-touch-icon" href="icon412.png">
 
     <link rel="manifest" href="manifest.json">
@@ -15,6 +16,7 @@
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
         html, body { margin:0; padding:0; overflow:hidden; height:100%; font-family: -apple-system, system-ui, sans-serif; background:#f8f9fa; }
+        
         h2 { text-align:center; margin:10px 0; font-weight:700; color: #1a1a1a; font-size: 24px; }
 
         #interactive.viewport {
@@ -51,6 +53,7 @@
         .row { display:flex; gap:10px; width: 100%; }
         button { padding: 16px; border-radius: 14px; border: 1px solid #ced4da; font-weight: 700; font-size: 18px; background: white; cursor: pointer; }
         button:active { transform: scale(0.98); opacity: 0.8; }
+        
         #torchBtn, #undoBtn { flex: 1; }
         #torchBtn { display:none; background:#fff3cd; border-color:#ffeeba; color:#856404; justify-content: center; align-items: center; }
         #undoBtn { background:#e9ecef; }
@@ -123,16 +126,21 @@ function startQuagga() {
     }, function(err) {
         if (err) return;
         Quagga.start();
+
+        // Покращена перевірка ліхтарика (20 спроб)
         let attempts = 0;
         const checkTorchInterval = setInterval(() => {
             try {
                 const track = Quagga.CameraAccess.getActiveTrack();
-                if (track?.getCapabilities()?.torch) {
-                    document.getElementById("torchBtn").style.display = "flex";
-                    clearInterval(checkTorchInterval);
+                if (track) {
+                    const caps = track.getCapabilities ? track.getCapabilities() : {};
+                    if (caps.torch) {
+                        document.getElementById("torchBtn").style.display = "flex";
+                        clearInterval(checkTorchInterval);
+                    }
                 }
             } catch (e) {}
-            if (++attempts > 15) clearInterval(checkTorchInterval);
+            if (++attempts > 20) clearInterval(checkTorchInterval);
         }, 500);
     });
 }
@@ -183,6 +191,7 @@ document.getElementById("torchBtn").onclick = async function() {
             isTorchOn = !isTorchOn;
             await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
             this.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
+            this.style.background = isTorchOn ? "#ffeb3b" : "#fff3cd";
         }
     } catch (e) {}
 };
@@ -222,7 +231,7 @@ const saved = localStorage.getItem(STORAGE_KEY);
 if (saved) { JSON.parse(saved).forEach(v => scannedCodes.add(v)); updateUI(); }
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
+    navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Error:", err));
 }
 
 startQuagga();
