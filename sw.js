@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scanner412-v4';
+const CACHE_NAME = 'scanner412-v5';
 
 const ASSETS = [
   './',
@@ -6,7 +6,7 @@ const ASSETS = [
   './manifest.json',
   './quagga.min.js',
   './icon412.png',
-  'https://raw.githubusercontent.com/renzofiorella/barcode-scanner-pwa/master/src/assets/beep.mp3'
+  './beep.mp3' // Тепер файл береться з вашого репозиторію
 ];
 
 self.addEventListener('install', (event) => {
