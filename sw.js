@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scanner412-v5';
+const CACHE_NAME = 'scanner412-v6';
 
 const ASSETS = [
   './',
@@ -6,7 +6,7 @@ const ASSETS = [
   './manifest.json',
   './quagga.min.js',
   './icon412.png',
-  './beep.mp3' // Тепер файл береться з вашого репозиторію
+  './beep.mp3'
 ];
 
 self.addEventListener('install', (event) => {
