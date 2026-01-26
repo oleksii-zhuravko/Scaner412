@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scanner412-v9';
+const CACHE_NAME = 'scanner412-v10';
 
 const ASSETS = [
   './',
@@ -34,6 +34,7 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
 
 
 
