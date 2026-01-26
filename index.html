@@ -44,28 +44,31 @@
         }
 
         .controls { max-width:600px; margin:5px auto; display:flex; flex-direction:column; gap:8px; padding:0 12px; }
-        .row { display:flex; gap:8px; width: 100%; }
+        .row { display:flex; gap:6px; width: 100%; }
         
         button { 
             height: 54px; 
-            padding: 0 10px; 
+            padding: 0 4px; /* Мінімальні бокові відступи */
             border-radius: 12px; 
             border: 1px solid #ced4da; 
             font-weight: 700; 
-            font-size: 16px; 
+            font-size: 14px; /* Трохи менший шрифт для однакової ширини */
             background: white; 
             cursor: pointer; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            line-height: 1;
+            line-height: 1.1;
+            text-align: center;
+            flex: 1; /* ОДНАКОВА ШИРИНА ДЛЯ ВСІХ КНОПОК У РЯДКУ */
         }
         
-        #torchBtn { display:none; background:#fff3cd; flex: 1.2; }
-        #reloadBtn { background:#e7f3ff; flex: 0.8; }
-        #undoBtn { background:#f8f9fa; flex: 0.8; }
-        #copyBtn { background: #d4edda; color: #155724; border-color: #c3e6cb; width: 100%; }
-        .clearBtn { background:#fff5f5; color:#d93025; border-color:#fad2cf; width: 100%; }
+        #torchBtn { display:none; background:#fff3cd; color:#856404; }
+        #reloadBtn { background:#e7f3ff; color:#0056b3; }
+        #undoBtn { background:#f8f9fa; color:#495057; }
+        
+        #copyBtn { background: #d4edda; color: #155724; border-color: #c3e6cb; flex: none; width: 100%; }
+        .clearBtn { background:#fff5f5; color:#d93025; border-color:#fad2cf; flex: none; width: 100%; }
 
         .credits { text-align: center; font-size: 10px; color: #adb5bd; margin-top: 10px; padding-bottom: 15px; }
     </style>
@@ -130,7 +133,6 @@ function startQuagga() {
     }, function(err) {
         if (err) return;
         Quagga.start();
-        // Даємо камері 1 секунду "прокинутися" перед пошуком ліхтарика
         setTimeout(checkTorchSupport, 1000);
     });
 }
@@ -138,7 +140,6 @@ function startQuagga() {
 function checkTorchSupport() {
     let attempts = 0;
     const interval = setInterval(() => {
-        // Прямий доступ до відео-треку (найкраще для Samsung)
         const video = document.querySelector('video');
         const stream = video ? video.srcObject : null;
         const track = stream ? stream.getVideoTracks()[0] : null;
@@ -194,7 +195,6 @@ document.getElementById("torchBtn").onclick = async function() {
             this.innerHTML = isTorchOn ? "🔦 Вимкнути" : "🔦 Ліхтарик";
             this.style.background = isTorchOn ? "#ffeb3b" : "#fff3cd";
         } catch (e) { 
-            console.error(isTorchOn);
             isTorchOn = false;
         }
     }
@@ -254,7 +254,7 @@ document.getElementById("clearAllBtn").onclick = () => {
     setTimeout(() => {
         Quagga.stop();
         startQuagga();
-    }, 1500); // Трохи більша пауза для Samsung після вікна confirm
+    }, 1200);
 };
 
 const saved = localStorage.getItem(STORAGE_KEY);
